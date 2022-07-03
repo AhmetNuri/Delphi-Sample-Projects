@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<TgConfig Version="3" SubLevelDisabled="False">
+  <Option Name="namespaceFolder.UscoKamera" Type="System.String" Value="UscoKamera" Category="General" IsBrowsable="False" />
+</TgConfig>
