@@ -10,7 +10,9 @@ uses
   FMX.Objects, FMX.Controls.Presentation, FMX.Edit, FMX.NumberBox, FMX.Layouts,
   FMX.StdCtrls, FMX.Ani, FMX.ListBox, System.Generics.Collections, FMX.Colors,
   FMX.Filter.Effects, System.Skia, FMX.Skia, FMX.Text, System.JSON, Math,
-  StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar, FMX.DateTimeCtrls.Types;
+  StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar, FMX.DateTimeCtrls.Types
+
+  , System.DateUtils  ;
 // SVGIcon için eklendi
 
 type
@@ -46,6 +48,8 @@ type
     FHeaderTextColor: TAlphaColor;
     FHeaderTextSize: Single;
     FItemTextSize: Single;
+  FEnableLogging: Boolean;  // Loglama açık/kapalı durumu
+  FLogFilePath: string;     // Log dosyası yolu
 
     procedure CreateHeaderSection(AHeaderInfo: THeaderInfo);
     procedure HeaderRectangleClick(Sender: TObject);
@@ -62,6 +66,7 @@ type
     procedure ProcessLayoutComponents(Layout: TLayout; const FieldName: string;
       FieldsObj: TJSONObject);
     function FindLabelTextForComponent(Component: TComponent): string;
+    procedure  DebugLog(const AMessage: string);
 
   protected
     procedure Loaded; override;
@@ -128,6 +133,8 @@ function  GenerateComponentName(Component: TComponent; const BaseName: string; I
       write FHeaderTextColor;
     property HeaderTextSize: Single read FHeaderTextSize write FHeaderTextSize;
     property ItemTextSize: Single read FItemTextSize write FItemTextSize;
+ property EnableLogging: Boolean read FEnableLogging write FEnableLogging;
+  property LogFilePath: string read FLogFilePath write FLogFilePath;
   end;
 
 procedure Register;
@@ -179,6 +186,36 @@ begin
   FHeaderTextColor := TAlphaColorRec.White;
   FHeaderTextSize := 16;
   FItemTextSize := 14;
+   // Loglama için varsayılan ayarlar
+  FEnableLogging := False;
+  FLogFilePath :=  ( 'ExpandableListView.log');
+end;
+
+procedure TExpandableListView.DebugLog(const AMessage: string);
+
+var
+  LogMessage: string;
+  LogFile: TextFile;
+  begin
+ // Eğer loglama etkinse, dosyaya da yaz
+  if FEnableLogging then
+  begin
+    try
+      LogMessage := Format('[%s] %s', [FormatDateTime('yyyy-mm-dd hh:nn:ss', Now), AMessage]);
+
+      AssignFile(LogFile, FLogFilePath);
+      if FileExists(FLogFilePath) then
+        Append(LogFile)
+      else
+        Rewrite(LogFile);
+
+      WriteLn(LogFile, LogMessage);
+      CloseFile(LogFile);
+    except
+      // Log yazma hatalarını sessizce geç
+    end;
+  end;
+
 end;
 
 destructor TExpandableListView.Destroy;
@@ -364,16 +401,18 @@ end;
 
 function TExpandableListView.LoadFromJSON(const AJSONString: string): Boolean;
 var
-  JSONObj: TJSONObject;
-  HeaderNames: TJSONArray;
-  HeaderName: string;
+  RootObj: TJSONObject;
+  HeadersArray: TJSONArray;
   HeaderObj: TJSONObject;
   HeaderInfo: THeaderInfo;
+  HeaderTitle: string;
   HeaderIndex: Integer;
   HeaderColor: TAlphaColor;
   FieldsObj: TJSONObject;
   SVGData: string;
-  i: Integer;
+  MetadataObj: TJSONObject;
+  MetadataCreatedAt, MetadataCreatedBy, MetadataVersion: string;
+  i, j: Integer;
 begin
   Result := False;
 
@@ -387,82 +426,173 @@ begin
     Clear;
 
     // JSON nesnesini oluştur
-    JSONObj := TJSONObject.ParseJSONValue(AJSONString) as TJSONObject;
-    if JSONObj = nil then
+    RootObj := TJSONObject.ParseJSONValue(AJSONString) as TJSONObject;
+    if RootObj = nil then
     begin
       ShowMessage('JSON parse hatası: Geçersiz JSON formatı');
       Exit;
     end;
 
     try
-      // Her bir başlık için
-      for i := 0 to JSONObj.Count - 1 do
+      // Metadata bilgilerini oku (varsa)
+      if RootObj.TryGetValue<TJSONObject>('Metadata', MetadataObj) then
       begin
-        try
-          HeaderName := JSONObj.Pairs[i].JsonString.Value;
-          if not(JSONObj.Pairs[i].JsonValue is TJSONObject) then
-          begin
-            ShowMessage('Hata: "' + HeaderName + '" için geçersiz başlık yapısı');
-            Continue;
-          end;
+        if MetadataObj.TryGetValue('CreatedAt', MetadataCreatedAt) then
+          DebugLog (PChar('JSON oluşturma zamanı: ' + MetadataCreatedAt));
 
-          HeaderObj := JSONObj.Pairs[i].JsonValue as TJSONObject;
+        if MetadataObj.TryGetValue('CreatedBy', MetadataCreatedBy) then
+          DebugLog (PChar('JSON oluşturan kullanıcı: ' + MetadataCreatedBy));
 
-          // Başlık indeksi ve rengi
-          HeaderIndex := 0;
-          if HeaderObj.TryGetValue('HeaderIndex', HeaderIndex) = False then
-            HeaderIndex := i; // Varsayılan olarak sıra numarası
-
-          HeaderColor := TAlphaColorRec.Blue; // Varsayılan renk
-          if HeaderObj.GetValue('HeaderColor') <> nil then
-          begin
-            var
-              ColorStr := HeaderObj.GetValue('HeaderColor').Value;
-            if ColorStr.StartsWith('#') then
-            begin
-              // Hex formatından renk oluştur
-              HeaderColor := HexToTAlphaColor(ColorStr);
-            end
-            else
-              HeaderColor := ColorStr.ToInt64;
-          end;
-
-          // Başlık oluştur
-          HeaderInfo := AddHeader(HeaderName, HeaderIndex, HeaderColor);
-          if HeaderInfo = nil then
-          begin
-            ShowMessage('Başlık oluşturma hatası: ' + HeaderName);
-            Continue;
-          end;
-
-          // SVG verisi
-          if HeaderObj.GetValue('SVGData') <> nil then
-          begin
-            SVGData := HeaderObj.GetValue('SVGData').Value;
-            if SVGData <> '' then
-              SetHeaderSVG(HeaderInfo, SVGData);
-          end;
-
-          // Alanları işle
-          if HeaderObj.GetValue('Fields') <> nil then
-          begin
-            FieldsObj := HeaderObj.GetValue('Fields') as TJSONObject;
-            LoadFieldsFromJSON(HeaderInfo, FieldsObj);
-          end
-          else
-          begin
-            // Eski format - doğrudan alanlar
-            LoadFieldsFromJSON(HeaderInfo, HeaderObj);
-          end;
-        except
-          on E: Exception do
-            ShowMessage('Başlık işleme hatası: ' + HeaderName + ' - ' + E.Message);
-        end;
+        if MetadataObj.TryGetValue('Version', MetadataVersion) then
+          DebugLog (PChar('JSON versiyon: ' + MetadataVersion));
       end;
 
-      Result := True;
+      // Yeni format (Headers array olarak)
+      if RootObj.TryGetValue<TJSONArray>('Headers', HeadersArray) then
+      begin
+        // Headers array'indeki her bir başlık için işlem yap
+        for i := 0 to HeadersArray.Count - 1 do
+        begin
+          try
+            HeaderObj := HeadersArray.Items[i] as TJSONObject;
+
+            // Başlık bilgilerini al
+            if not HeaderObj.TryGetValue('Title', HeaderTitle) then
+            begin
+              ShowMessage('Hata: Başlık ' + IntToStr(i) + ' için Title bilgisi eksik');
+              Continue;
+            end;
+
+            // HeaderIndex bilgisini al (varsayılan değer = i)
+            if not HeaderObj.TryGetValue('HeaderIndex', HeaderIndex) then
+              HeaderIndex := i;
+
+            // HeaderColor bilgisini al
+            HeaderColor := TAlphaColorRec.Blue; // Varsayılan renk
+            if HeaderObj.GetValue('HeaderColor') <> nil then
+            begin
+              var ColorStr := HeaderObj.GetValue('HeaderColor').Value;
+              if ColorStr.StartsWith('#') then
+              begin
+                // Hex formatından renk oluştur
+                HeaderColor := HexToTAlphaColor(ColorStr);
+              end
+              else
+              begin
+                try
+                  HeaderColor := ColorStr.ToInt64;
+                except
+                  HeaderColor := TAlphaColorRec.Blue; // Geçersiz renk varsa varsayılan kullan
+                end;
+              end;
+            end;
+
+            // Başlık oluştur
+            HeaderInfo := AddHeader(HeaderTitle, HeaderIndex, HeaderColor);
+            if HeaderInfo = nil then
+            begin
+              ShowMessage('Başlık oluşturma hatası: ' + HeaderTitle);
+              Continue;
+            end;
+
+            // SVG verisi
+            if HeaderObj.GetValue('SVGData') <> nil then
+            begin
+              SVGData := HeaderObj.GetValue('SVGData').Value;
+              if SVGData <> '' then
+                SetHeaderSVG(HeaderInfo, SVGData);
+            end;
+
+            // Fields nesnesini işle
+            if HeaderObj.TryGetValue<TJSONObject>('Fields', FieldsObj) then
+            begin
+              LoadFieldsFromJSON(HeaderInfo, FieldsObj);
+            end;
+          except
+            on E: Exception do
+              ShowMessage('Başlık işleme hatası: Başlık ' + IntToStr(i) + ' - ' + E.Message);
+          end;
+        end;
+
+        Result := True;
+      end
+      else
+       exit;
+
+        // Eski format (doğrudan başlıklar ana objede)
+        // Bu kısmı backward compatibility (geriye dönük uyumluluk) için tutuyoruz
+        for i := 0 to RootObj.Count - 1 do
+        begin
+          try
+            HeaderTitle := RootObj.Pairs[i].JsonString.Value;
+
+            // Metadata'yı atla
+            if HeaderTitle = 'Metadata' then
+              Continue;
+            if (not(RootObj.Pairs[i].JsonValue is TJSONObject) ) or (not(RootObj.Pairs[i].JsonValue is TJSONArray)) then
+            begin
+             DebugLog('Hata: "' + HeaderTitle + '" için geçersiz başlık yapısı');
+//             var xx:=    RootObj.Pairs[i].JsonValue.ToString;
+
+              Continue;
+            end;
+
+            HeaderObj := RootObj.Pairs[i].JsonValue as TJSONObject;
+
+            // Başlık indeksi ve rengi
+            HeaderIndex := 0;
+            if HeaderObj.TryGetValue('HeaderIndex', HeaderIndex) = False then
+              HeaderIndex := i;
+
+            HeaderColor := TAlphaColorRec.Blue;
+            if HeaderObj.GetValue('HeaderColor') <> nil then
+            begin
+              var ColorStr := HeaderObj.GetValue('HeaderColor').Value;
+              if ColorStr.StartsWith('#') then
+              begin
+                HeaderColor := HexToTAlphaColor(ColorStr);
+              end
+              else
+                HeaderColor := ColorStr.ToInt64;
+            end;
+
+            // Başlık oluştur
+            HeaderInfo := AddHeader(HeaderTitle, HeaderIndex, HeaderColor);
+            if HeaderInfo = nil then
+            begin
+              ShowMessage('Başlık oluşturma hatası: ' + HeaderTitle);
+              Continue;
+            end;
+
+            // SVG verisi
+            if HeaderObj.GetValue('SVGData') <> nil then
+            begin
+              SVGData := HeaderObj.GetValue('SVGData').Value;
+              if SVGData <> '' then
+                SetHeaderSVG(HeaderInfo, SVGData);
+            end;
+
+            // Alanları işle
+            if HeaderObj.GetValue('Fields') <> nil then
+            begin
+              FieldsObj := HeaderObj.GetValue('Fields') as TJSONObject;
+              LoadFieldsFromJSON(HeaderInfo, FieldsObj);
+            end
+            else
+            begin
+              // Eski format - doğrudan alanlar
+              LoadFieldsFromJSON(HeaderInfo, HeaderObj);
+            end;
+          except
+            on E: Exception do
+              ShowMessage('Başlık işleme hatası: ' + HeaderTitle + ' - ' + E.Message);
+          end;
+        end;
+
+        Result := True;
+
     finally
-      JSONObj.Free;
+      RootObj.Free;
     end;
   except
     on E: Exception do
@@ -472,7 +602,6 @@ begin
     end;
   end;
 end;
-
 
 // JSON dosyasından başlık bilgisi yükleme
 function TExpandableListView.LoadHeaderFromJSON(const ATitle: string;
@@ -1669,120 +1798,76 @@ end;
 
 function TExpandableListView.ExportToJSON: string;
 var
-  RootObj, HeaderObj, FieldsObj, ValueObj: TJSONObject;
-  HeaderInfo: THeaderInfo;
-  Component: TComponent;
-  ComponentName: string;
-  i, j, k: Integer;
-  ChildItem: TListBoxItem;
-  ItemCounter: Integer; // Tüm başlıklar için ortak sayaç
+  RootObj: TJSONObject;
+  HeadersArray: TJSONArray;
+  HeaderObj: TJSONObject;
+  i: Integer;
+  CurrentHeader: THeaderInfo;
+  MetadataObj: TJSONObject;
 begin
+  // Ana JSON nesnesi
   RootObj := TJSONObject.Create;
-  ItemCounter := 0; // Sayacı başlat
 
   try
-    // Her başlık için
+    // Metadata bilgilerini ekle
+    MetadataObj := TJSONObject.Create;
+    MetadataObj.AddPair('CreatedAt', TJSONString.Create(FormatDateTime('yyyy-mm-dd hh:nn:ss', Now)));
+    MetadataObj.AddPair('CreatedBy', TJSONString.Create('AhmetNuri'));
+    MetadataObj.AddPair('Version', TJSONString.Create('1.0'));
+    RootObj.AddPair('Metadata', MetadataObj);
+
+    // Headers dizisi oluştur
+    HeadersArray := TJSONArray.Create;
+
+    // Tüm başlıkları gezin
     for i := 0 to FHeaders.Count - 1 do
     begin
-      HeaderInfo := FHeaders[i];
-      HeaderObj := TJSONObject.Create;
+      CurrentHeader := FHeaders[i];
+      HeaderObj := ExportHeaderToJSON(CurrentHeader);
 
-      // Başlık bilgilerini ekle
-      HeaderObj.AddPair('HeaderIndex', TJSONNumber.Create(HeaderInfo.ImageIndex));
-      HeaderObj.AddPair('HeaderColor', TJSONString.Create(ColorToString(HeaderInfo.Color)));
-
-      // SVG verisi varsa ekle
-      if HeaderInfo.SVGData <> '' then
-        HeaderObj.AddPair('SVGData', TJSONString.Create(HeaderInfo.SVGData));
-
-      // Alanları ekle
-      FieldsObj := TJSONObject.Create;
-
-      // Her bir alt öğe için
-      for j := 0 to HeaderInfo.ChildItems.Count - 1 do
-      begin
-        ChildItem := HeaderInfo.ChildItems[j];
-
-        // Öğe adını belirle - artık başlığa özgü değil, genel sayaç kullanıyor
-        ComponentName := 'item_' + IntToStr(ItemCounter);
-        Inc(ItemCounter); // Her öğe için sayacı artır
-
-        // Her bir çocuk öğe içindeki kontrolleri bul
-        for k := 0 to ChildItem.ComponentCount - 1 do
-        begin
-          if ChildItem.Components[k] is TLayout then
-          begin
-            // Layout içindeki bileşenleri işle
-            ProcessLayoutComponents(TLayout(ChildItem.Components[k]), ComponentName, FieldsObj);
-          end
-          else if IsValidComponent(ChildItem.Components[k]) then
-          begin
-            // Doğrudan bileşeni işle
-            ProcessComponent(ChildItem.Components[k], ComponentName, FieldsObj);
-          end;
-        end;
-      end;
-
-      HeaderObj.AddPair('Fields', FieldsObj);
-      RootObj.AddPair(HeaderInfo.Title, HeaderObj);
+      if HeaderObj <> nil then
+        HeadersArray.Add(HeaderObj);
     end;
 
+    // Headers dizisini ana JSON'a ekle
+    RootObj.AddPair('Headers', HeadersArray);
+
+    // JSON olarak döndür
     Result := RootObj.ToString;
-  finally
-    RootObj.Free;
+  except
+    on E: Exception do
+    begin
+      FreeAndNil(RootObj);
+      raise Exception.Create('ExportToJSON hatası: ' + E.Message);
+    end;
   end;
 end;
 
-
  // Layout içindeki bileşenleri işleyen yardımcı fonksiyon
+
 procedure TExpandableListView.ProcessLayoutComponents(Layout: TLayout; const FieldName: string; FieldsObj: TJSONObject);
 var
   i: Integer;
   Component: TComponent;
-  ValueObj: TJSONObject;
-  LabelFound: Boolean;
-  LabelText: string;
+  ComponentFieldName: string;
 begin
-  // Layout içindeki tüm etiketleri tara ve metin değerlerini al
+  // Layout içindeki tüm bileşenleri dolaş
   for i := 0 to Layout.ComponentCount - 1 do
   begin
     Component := Layout.Components[i];
 
-    // Etiket (Label) bileşenlerini atla - bunlar ayrı işlenecek
-    if Component is TLabel then
-      Continue;
-
-    // Layout içinde başka layout varsa, onu da işle
-    if Component is TLayout then
-    begin
-      // Önemli: Alt layout için de aynı alan adını kullan
-      ProcessLayoutComponents(TLayout(Component), FieldName, FieldsObj);
-      Continue;
-    end;
-
-    // Geçerli bir bileşense işle
     if IsValidComponent(Component) then
     begin
-      // Bileşen adını belirle - artık tip + indeks eklemiyoruz
-      // Doğrudan FieldName kullanıyoruz (item_X formatında)
+      // Eğer belirtilmiş bir alan adı yoksa, bileşenin yanındaki etiketten bul
+      ComponentFieldName := FieldName;
+      if ComponentFieldName = '' then
+        ComponentFieldName := FindLabelTextForComponent(Component);
 
-      // Bileşeni işle
-      ValueObj := CreateValueObjectForComponent(Component);
-      if ValueObj <> nil then
-      begin
-        // Bu bileşene ait bir etiket var mı kontrol et
-        LabelText := FindLabelTextForComponent(Component);
-        if LabelText <> '' then
-          ValueObj.AddPair('labelText', TJSONString.Create(LabelText));
-
-        // Artık bileşen adını doğrudan FieldName olarak kullanıyoruz
-        FieldsObj.AddPair(FieldName, ValueObj);
-        Break; // Her alan için bir kontrol yeterli
-      end;
+      if ComponentFieldName <> '' then
+        ProcessComponent(Component, ComponentFieldName, FieldsObj);
     end;
   end;
 end;
-
 
 
 // Bileşenin geçerli olup olmadığını kontrol eden fonksiyon
@@ -1803,7 +1888,7 @@ var
   ValueObj: TJSONObject;
   Items: TJSONArray;
   k: Integer;
-  ComponentType: string;
+  UIType: string;
   LabelText: string;
   Control: TControl;
 begin
@@ -1811,8 +1896,8 @@ begin
 
   try
     // Bileşen tipini belirle
-    ComponentType := Component.ClassName;
-    ValueObj.AddPair('ComponentType', TJSONString.Create(ComponentType));
+    UIType := Component.ClassName;
+    ValueObj.AddPair('UIType', TJSONString.Create(UIType));
 
     // Etiket metnini bul
     LabelText := FindLabelTextForComponent(Component);
@@ -1985,73 +2070,89 @@ var
   ValueObj: TJSONObject;
 begin
   ValueObj := CreateValueObjectForComponent(Component);
+
   if ValueObj <> nil then
-    // Doğrudan FieldName kullanıyoruz
     FieldsObj.AddPair(FieldName, ValueObj);
 end;
+
 
 function TExpandableListView.ExportHeaderToJSON(AHeaderInfo: THeaderInfo): TJSONObject;
 var
   HeaderObj: TJSONObject;
-  i: Integer;
-  ChildItem: TListBoxItem;
+  FieldsObj: TJSONObject;
+  i, ComponentCount: Integer;
+  Component: TComponent;
   FieldName: string;
-  Control: TControl;
-  ValueObj: TJSONObject;
-  j: Integer;
+  Layout: TLayout;
+  LayoutChildrenAdded: Boolean;
 begin
   HeaderObj := TJSONObject.Create;
 
-  // Başlık öğelerini dolaş
-  for i := 0 to AHeaderInfo.ChildItems.Count - 1 do
-  begin
-    ChildItem := AHeaderInfo.ChildItems[i];
+  try
+    // Başlık bilgileri
+    HeaderObj.AddPair('Title', TJSONString.Create(AHeaderInfo.Title));
+    HeaderObj.AddPair('HeaderIndex', TJSONNumber.Create(AHeaderInfo.ImageIndex));
+    HeaderObj.AddPair('HeaderColor', TJSONString.Create(ColorToString(AHeaderInfo.Color)));
 
-    // Etiket metnini al (TagString'de saklanan)
-    FieldName := ChildItem.TagString;
-    if FieldName = '' then
-      FieldName := 'item_' + IntToStr(i);
+    // SVG verisi varsa ekle
+    if AHeaderInfo.SVGData <> '' then
+      HeaderObj.AddPair('SVGData', TJSONString.Create(AHeaderInfo.SVGData));
 
-    // Her bir çocuk öğe içindeki kontrolleri bul
-    for j := 0 to ChildItem.ComponentCount - 1 do
+    // Fields nesnesi
+    FieldsObj := TJSONObject.Create;
+
+    // Başlığa ait içerik nesnelerini (EditBox, CheckBox vb.) bul ve ekle
+    for i := 0 to AHeaderInfo.ChildItems.Count - 1 do
     begin
-      if ChildItem.Components[j] is TLayout then
+      if not (AHeaderInfo.ChildItems[i] is TListBoxItem) then
+        Continue;
+
+      LayoutChildrenAdded := False;
+      ComponentCount := AHeaderInfo.ChildItems[i].ComponentCount;
+
+      // ListBoxItem'in içindeki bileşenleri dolaş
+      // (genellikle bir Layout içinde olurlar)
+      for var j := 0 to ComponentCount - 1 do
       begin
-        // Layout içindeki bileşenleri bul
-        var Layout := TLayout(ChildItem.Components[j]);
+        Component := AHeaderInfo.ChildItems[i].Components[j];
 
-        // Etiket metnini bul
-        for var k := 0 to Layout.ComponentCount - 1 do
+        if Component is TLayout then
         begin
-          if Layout.Components[k] is TLabel then
-          begin
-            FieldName := TLabel(Layout.Components[k]).Text;
-            Break;
-          end;
+          Layout := TLayout(Component);
+          // Layout içindeki bileşenleri işle
+          ProcessLayoutComponents(Layout, '', FieldsObj);
+          LayoutChildrenAdded := True;
+          Break;
         end;
+      end;
 
-        // Her bir kontrol için değer nesnesi oluştur
-        for var k := 0 to Layout.ComponentCount - 1 do
+      // Eğer Layout içindeki bileşenler eklenmediyse, doğrudan bileşenleri kontrol et
+      if not LayoutChildrenAdded then
+      begin
+        for var j := 0 to ComponentCount - 1 do
         begin
-          if not (Layout.Components[k] is TLabel) and IsValidComponent(Layout.Components[k]) then
+          Component := AHeaderInfo.ChildItems[i].Components[j];
+          if IsValidComponent(Component) then
           begin
-            Control := TControl(Layout.Components[k]);
-
-            ValueObj := CreateValueObjectForComponent(Control);
-            if ValueObj <> nil then
-            begin
-              // Etiket metnini ekle
-              ValueObj.AddPair('labelText', TJSONString.Create(FieldName));
-              HeaderObj.AddPair(FieldName, ValueObj);
-              Break; // Her alan için bir kontrol yeterli
-            end;
+            FieldName := FindLabelTextForComponent(Component);
+            if FieldName <> '' then
+              ProcessComponent(Component, FieldName, FieldsObj);
           end;
         end;
       end;
     end;
-  end;
 
-  Result := HeaderObj;
+    // Fields nesnesini Header'a ekle
+    HeaderObj.AddPair('Fields', FieldsObj);
+
+    Result := HeaderObj;
+  except
+    on E: Exception do
+    begin
+      FreeAndNil(HeaderObj);
+      Result := nil;
+    end;
+  end;
 end;
 
 
@@ -2089,3 +2190,4 @@ begin
 end;
 
 end.
+
