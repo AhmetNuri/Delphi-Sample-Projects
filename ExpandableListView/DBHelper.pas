@@ -14,7 +14,7 @@ type
   private
     FConnection: TFDConnection;
 
-    // Yardýmcý fonksiyonlar
+    // YardÄ±mcÄ± fonksiyonlar
     function GetLastInsertRowID: Integer;
     function EscapeString(const AValue: string): string;
     procedure ExecuteSQL(const ASQL: string);
@@ -25,10 +25,10 @@ type
     constructor Create(AConnection: TFDConnection);
     destructor Destroy; override;
 
-    // Veritabanýndan JSON oluþturma fonksiyonu
+    // VeritabanÄ±ndan JSON oluÅŸturma fonksiyonu
     function DatabaseToJSON(const AListViewName: string = ''): string;
 
-    // JSON'dan veritabanýna kaydetme fonksiyonu
+    // JSON'dan veritabanÄ±na kaydetme fonksiyonu
     function JSONToDatabase(const AJSON: string; const AListViewName: string = ''): Integer;
   end;
 
@@ -44,13 +44,13 @@ end;
 
 destructor TDBHelper.Destroy;
 begin
-  // Baðlantýyý kapatmýyoruz, dýþarýdan saðlandýðý için
+  // BaÄŸlantÄ±yÄ± kapatmÄ±yoruz, dÄ±ÅŸarÄ±dan saÄŸlandÄ±ÄŸÄ± iÃ§in
   inherited;
 end;
 
 function TDBHelper.EscapeString(const AValue: string): string;
 begin
-  // SQL injection'dan korunmak için string deðerleri kaçýþ karakterleri ile güvenli hale getir
+  // SQL injection'dan korunmak iÃ§in string deÄŸerleri kaÃ§Ä±ÅŸ karakterleri ile gÃ¼venli hale getir
   Result := StringReplace(AValue, '''', '''''', [rfReplaceAll]);
 end;
 
@@ -85,28 +85,27 @@ end;
 
 function TDBHelper.GetFieldDataType(const AFieldDataType: string): string;
 begin
-  // Veri tipi için standart dönüþüm
+  // Veri tipi iÃ§in standart dÃ¶nÃ¼ÅŸÃ¼m
   if AFieldDataType = 'string' then Result := 'TEXT'
   else if AFieldDataType = 'integer' then Result := 'INTEGER'
   else if AFieldDataType = 'float' then Result := 'REAL'
   else if AFieldDataType = 'boolean' then Result := 'INTEGER'
   else if AFieldDataType = 'date' then Result := 'TEXT'
   else if AFieldDataType = 'datetime' then Result := 'TEXT'
-  else Result := 'TEXT'; // Varsayýlan
+  else Result := 'TEXT'; // VarsayÄ±lan
 end;
 
 function TDBHelper.GetFieldType(const AFieldType: string): string;
 begin
-  // Alan tipi için standart dönüþüm
+  // Alan tipi iÃ§in standart dÃ¶nÃ¼ÅŸÃ¼m
   if AFieldType = 'edit' then Result := 'edit'
   else if AFieldType = 'number' then Result := 'number'
   else if AFieldType = 'checkbox' then Result := 'checkbox'
   else if AFieldType = 'switch' then Result := 'switch'
   else if AFieldType = 'combobox' then Result := 'combobox'
   else if AFieldType = 'colorbox' then Result := 'colorbox'
-  else Result := 'edit'; // Varsayýlan
+  else Result := 'edit'; // VarsayÄ±lan
 end;
-
 function TDBHelper.DatabaseToJSON(const AListViewName: string = ''): string;
 var
   JSONObject: TJSONObject;
@@ -119,7 +118,7 @@ var
   ListViewID, HeaderID, FieldID: Integer;
   WhereClause, HeaderTitle: string;
 begin
-  // Direkt olarak ana JSON nesnesini oluþtur (Headers dizisi olmadan)
+  // Direkt olarak ana JSON nesnesini oluÅŸtur (Headers dizisi olmadan)
   JSONObject := TJSONObject.Create;
   try
     QueryListViews := TFDQuery.Create(nil);
@@ -129,39 +128,39 @@ begin
     QueryComboItems := TFDQuery.Create(nil);
 
     try
-      // Baðlantýlarý ayarla
+      // BaÄŸlantÄ±larÄ± ayarla
       QueryListViews.Connection := FConnection;
       QueryHeaders.Connection := FConnection;
       QueryFields.Connection := FConnection;
       QueryParams.Connection := FConnection;
       QueryComboItems.Connection := FConnection;
 
-      // Where koþulu oluþtur (belirli bir ListView için filtreleme)
+      // Where koÅŸulu oluÅŸtur (belirli bir ListView iÃ§in filtreleme)
       WhereClause := '';
       if AListViewName <> '' then
         WhereClause := ' WHERE ListViews.ListViewName = ''' + EscapeString(AListViewName) + '''';
 
-      // ListView'larýn listesi
+      // ListView'larÄ±n listesi
       QueryListViews.SQL.Text := 'SELECT * FROM ListViews ' + WhereClause;
       QueryListViews.Open;
 
-      // Her ListView için (Genellikle tek bir liste olacak)
+      // Her ListView iÃ§in (Genellikle tek bir liste olacak)
       while not QueryListViews.Eof do
       begin
         ListViewID := QueryListViews.FieldByName('ListViewID').AsInteger;
 
-        // Headers sorgusu - HeaderOrder'a göre sýralý
+        // Headers sorgusu - HeaderOrder'a gÃ¶re sÄ±ralÄ±
         QueryHeaders.SQL.Text := 'SELECT * FROM Headers WHERE HeaderListViewID = :ListViewID ORDER BY HeaderOrder';
         QueryHeaders.ParamByName('ListViewID').AsInteger := ListViewID;
         QueryHeaders.Open;
 
-        // Her Header için
+        // Her Header iÃ§in
         while not QueryHeaders.Eof do
         begin
           HeaderID := QueryHeaders.FieldByName('HeaderID').AsInteger;
           HeaderTitle := QueryHeaders.FieldByName('HeaderTitle').AsString;
 
-          // Her baþlýk için JSON nesnesi
+          // Her baÅŸlÄ±k iÃ§in JSON nesnesi
           HeaderJSONObject := TJSONObject.Create;
 
           // HeaderIndex ekle
@@ -170,7 +169,7 @@ begin
           else if not QueryHeaders.FieldByName('HeaderOrder').IsNull then
             HeaderJSONObject.AddPair('HeaderIndex', TJSONNumber.Create(QueryHeaders.FieldByName('HeaderOrder').AsInteger));
 
-          // HeaderColor ekle - orijinal formatta (renk kodunu deðiþtirmeden)
+          // HeaderColor ekle - orijinal formatta (renk kodunu deÄŸiÅŸtirmeden)
           if not QueryHeaders.FieldByName('HeaderColor').IsNull then
             HeaderJSONObject.AddPair('HeaderColor', TJSONString.Create(QueryHeaders.FieldByName('HeaderColor').AsString));
 
@@ -181,12 +180,13 @@ begin
           // Fields nesnesi
           FieldsObject := TJSONObject.Create;
 
-          // Fields sorgusu - FieldOrder'a göre sýralý
+          // Fields sorgusu - FieldOrder'a gÃ¶re sÄ±ralÄ±
+          // GÃœNCELLEME: Sorgu deÄŸiÅŸmedi Ã§Ã¼nkÃ¼ filtreleme uygulama kodunda yapÄ±lacak
           QueryFields.SQL.Text := 'SELECT * FROM Fields WHERE FieldHeaderID = :HeaderID ORDER BY FieldOrder';
           QueryFields.ParamByName('HeaderID').AsInteger := HeaderID;
           QueryFields.Open;
-
-          // Her Field için
+          QueryFields.First;
+          // Her Field iÃ§in
           while not QueryFields.Eof do
           begin
             FieldID := QueryFields.FieldByName('FieldID').AsInteger;
@@ -198,19 +198,26 @@ begin
             if FieldName.Trim = '' then
               FieldName := FieldLabel;
 
-            // Field bilgilerini ekle
+            // GÃœNCELLEME: Sadece belirtilen alanlarÄ± ekle
             if not QueryFields.FieldByName('FieldValue').IsNull then
               FieldObj.AddPair('Value', TJSONString.Create(QueryFields.FieldByName('FieldValue').AsString));
 
             if not QueryFields.FieldByName('FieldDataType').IsNull then
               FieldObj.AddPair('DataType', TJSONString.Create(QueryFields.FieldByName('FieldDataType').AsString));
 
-            // FieldParameters tablosundan Properties oluþtur
+            if not QueryFields.FieldByName('FieldType').IsNull then
+              FieldObj.AddPair('UIType', TJSONString.Create(QueryFields.FieldByName('FieldType').AsString));
+
+            if not QueryFields.FieldByName('FieldLabel').IsNull then
+              FieldObj.AddPair('labelText', TJSONString.Create(QueryFields.FieldByName('FieldLabel').AsString));
+
+
+            // FieldParameters tablosundan Properties oluÅŸtur
             QueryParams.SQL.Text := 'SELECT * FROM FieldParameters WHERE FieldID = :FieldID';
             QueryParams.ParamByName('FieldID').AsInteger := FieldID;
             QueryParams.Open;
 
-            // Properties için yeni bir JSONObject oluþtur
+            // Properties iÃ§in yeni bir JSONObject oluÅŸtur
             PropertiesObject := TJSONObject.Create;
 
             // Parametreler varsa, Properties nesnesini doldur
@@ -221,19 +228,27 @@ begin
                 var ParamName := QueryParams.FieldByName('ParameterName').AsString;
                 var ParamValue := QueryParams.FieldByName('ParameterValue').AsString;
 
-                // Parametreyi Properties'e ekle
-                PropertiesObject.AddPair(ParamName, TJSONString.Create(ParamValue));
+                // GÃœNCELLEME: ParameterName belirtilen alanlardan biri ise eklemiyoruz
+                if (ParamName <> 'FieldName') and
+                   (ParamName <> 'FieldValue') and
+                   (ParamName <> 'FieldDataType') and
+                   (ParamName <> 'FieldType') and
+                   (ParamName <> 'FieldLabel') then
+                begin
+                  // Parametreyi Properties'e ekle
+                  FieldObj.AddPair(ParamName, TJSONString.Create(ParamValue));
+                end;
                 QueryParams.Next;
               end;
             end;
 
-            // Properties nesnesini ekle (boþ olsa bile)
+            // Properties nesnesini ekle (boÅŸ olsa bile)
             FieldObj.AddPair('Properties', PropertiesObject);
 
             if not QueryFields.FieldByName('FieldOrder').IsNull then
               FieldObj.AddPair('Order', TJSONNumber.Create(QueryFields.FieldByName('FieldOrder').AsInteger));
 
-            // ComboBox öðeleri için
+            // ComboBox Ã¶ÄŸeleri iÃ§in
             if (not QueryFields.FieldByName('FieldType').IsNull) and
                (QueryFields.FieldByName('FieldType').AsString.ToLower = 'combobox') then
             begin
@@ -242,12 +257,12 @@ begin
               QueryComboItems.ParamByName('FieldID').AsInteger := FieldID;
               QueryComboItems.Open;
 
-              // ComboBox öðeleri varsa ekle
+              // ComboBox Ã¶ÄŸeleri varsa ekle
               if not QueryComboItems.IsEmpty then
               begin
                 var ComboItemsArray := TJSONArray.Create;
 
-                // Her ComboBox öðesi için
+                // Her ComboBox Ã¶ÄŸesi iÃ§in
                 while not QueryComboItems.Eof do
                 begin
                   var ItemObj := TJSONObject.Create;
@@ -260,15 +275,15 @@ begin
               end;
             end;
 
-            // Field'ý Fields nesnesine ekle (FieldLabel'i anahtar olarak kullan)
-            FieldsObject.AddPair(FieldLabel, FieldObj);
+            // Field'Ä± Fields nesnesine ekle (FieldLabel'i anahtar olarak kullan)
+            FieldsObject.AddPair(FieldName, FieldObj);
             QueryFields.Next;
           end;
 
           // Fields nesnesini Header'a ekle
           HeaderJSONObject.AddPair('Fields', FieldsObject);
 
-          // Bu Header'ý ana JSON'a ekle (baþlýk adýný anahtar olarak kullan)
+          // Bu Header'Ä± ana JSON'a ekle (baÅŸlÄ±k adÄ±nÄ± anahtar olarak kullan)
           JSONObject.AddPair(HeaderTitle, HeaderJSONObject);
           QueryHeaders.Next;
         end;
@@ -276,7 +291,7 @@ begin
         QueryListViews.Next;
       end;
 
-      // JSON çýktýsýný döndür
+      // JSON Ã§Ä±ktÄ±sÄ±nÄ± dÃ¶ndÃ¼r
       Result := JSONObject.ToString;
 
     finally
@@ -303,28 +318,28 @@ var
   ListViewID, HeaderID, FieldID: Integer;
   ListViewName: string;
 begin
-  Result := 0; // Ýþlenen kayýt sayýsý
+  Result := 0; // Ä°ÅŸlenen kayÄ±t sayÄ±sÄ±
 
   JSONObject := TJSONObject.ParseJSONValue(AJSON) as TJSONObject;
   if not Assigned(JSONObject) then
-    raise Exception.Create('Geçersiz JSON formatý');
+    raise Exception.Create('GeÃ§ersiz JSON formatÄ±');
 
   try
-    // Baþlýyoruz
+    // BaÅŸlÄ±yoruz
     FConnection.StartTransaction;
     try
-      // ListView adýný belirle
+      // ListView adÄ±nÄ± belirle
       if AListViewName <> '' then
         ListViewName := AListViewName
       else if JSONObject.TryGetValue('Name', ListViewName) = False then
         ListViewName := 'DefaultListView';
 
-      // ListView tablosuna kayýt ekle veya güncelle
+      // ListView tablosuna kayÄ±t ekle veya gÃ¼ncelle
       var QueryListView := TFDQuery.Create(nil);
       try
         QueryListView.Connection := FConnection;
 
-        // Önceden bu isimde bir ListView var mý kontrol et
+        // Ã–nceden bu isimde bir ListView var mÄ± kontrol et
         QueryListView.SQL.Text := 'SELECT ListViewID FROM ListViews WHERE ListViewName = :ListViewName';
         QueryListView.ParamByName('ListViewName').AsString := ListViewName;
         QueryListView.Open;
@@ -355,7 +370,7 @@ begin
 
           if HeaderObj.TryGetValue('Title', HeaderTitle) then
           begin
-            // Header tablosuna kayýt ekle
+            // Header tablosuna kayÄ±t ekle
             ExecuteSQL('INSERT INTO Headers (HeaderListViewID, HeaderTitle) VALUES (' +
                         ListViewID.ToString + ', ''' + EscapeString(HeaderTitle) + ''')');
             HeaderID := GetLastInsertRowID;
@@ -371,13 +386,13 @@ begin
 
                 var FieldValue, FieldDataType, FieldType, FieldLabel: string;
 
-                // Field deðerlerini al
+                // Field deÄŸerlerini al
                 if not FieldObj.TryGetValue('FieldValue', FieldValue) then FieldValue := '';
                 if not FieldObj.TryGetValue('FieldDataType', FieldDataType) then FieldDataType := 'string';
                 if not FieldObj.TryGetValue('FieldType', FieldType) then FieldType := 'edit';
                 if not FieldObj.TryGetValue('FieldLabel', FieldLabel) then FieldLabel := FieldName;
 
-                // Fields tablosuna kayýt ekle
+                // Fields tablosuna kayÄ±t ekle
                 ExecuteSQL('INSERT INTO Fields (FieldHeaderID, FieldName, FieldValue, FieldDataType, FieldType, FieldLabel) ' +
                           'VALUES (' + HeaderID.ToString + ', ''' + EscapeString(FieldName) + ''', ''' + EscapeString(FieldValue) + ''', ''' +
                           EscapeString(FieldDataType) + ''', ''' + EscapeString(FieldType) + ''', ''' +
@@ -397,7 +412,7 @@ begin
                     if ParamObj.TryGetValue('Key', ParamKey) and
                        ParamObj.TryGetValue('Value', ParamValue) then
                     begin
-                      // FieldParameters tablosuna kayýt ekle
+                      // FieldParameters tablosuna kayÄ±t ekle
                       ExecuteSQL('INSERT INTO FieldParameters (FieldID, ParameterName, ParameterValue) ' +
                                 'VALUES (' + FieldID.ToString + ', ''' + EscapeString(ParamKey) + ''', ''' +
                                 EscapeString(ParamValue) + ''')');
@@ -406,7 +421,7 @@ begin
                   end;
                 end;
 
-                // ComboBox öðelerini kontrol et
+                // ComboBox Ã¶ÄŸelerini kontrol et
                 var ComboItemsArray: TJSONArray;
                 if (FieldType = 'combobox') and
                    FieldObj.TryGetValue<TJSONArray>('ComboItems', ComboItemsArray) then
@@ -419,7 +434,7 @@ begin
                     if ItemObj.TryGetValue('Text', ItemText) and
                        ItemObj.TryGetValue('Value', ItemValue) then
                     begin
-                      // ComboBoxItems tablosuna kayýt ekle
+                      // ComboBoxItems tablosuna kayÄ±t ekle
                       ExecuteSQL('INSERT INTO ComboBoxItems (ComboBoxItemFieldID, ComboBoxItemValue, ComboBoxItemOrder) ' +
                                 'VALUES (' + FieldID.ToString + ', ''' + EscapeString(ItemValue) + ''', ' + IntToStr(l) + ')');
                       Inc(Result);
@@ -432,7 +447,7 @@ begin
         end;
       end;
 
-      // Tüm iþlemler baþarýlý, deðiþiklikleri kaydet
+      // TÃ¼m iÅŸlemler baÅŸarÄ±lÄ±, deÄŸiÅŸiklikleri kaydet
       FConnection.Commit;
 
     except
