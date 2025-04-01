@@ -1,4 +1,4 @@
-  unit DBHelper;
+ unit DBHelper;
 
 interface
 
@@ -440,6 +440,7 @@ begin
     end;
   end;
 end;
+
 function TDBHelper.JSONToDatabase(const AJSON: string; const AListViewName: string = ''): Integer;
 var
   JSONObject: TJSONObject;
@@ -486,7 +487,48 @@ begin
           // Get existing ListView ID
           ListViewID := QueryListView.FieldByName('ListViewID').AsInteger;
 
-          // Optional: Clear existing data for this ListView
+          // Temizleme işlemini doğru sırayla yapıyoruz:
+          // 1. İlk önce ComboBoxItem tablosundaki bağlı kayıtları temizle
+          var HeaderIDList := '';
+          var FieldIDList := '';
+
+          // Headers'a bağlı olan Field ID'leri alıyoruz
+          var QueryFields := TFDQuery.Create(nil);
+          try
+            QueryFields.Connection := FConnection;
+            QueryFields.SQL.Text :=
+              'SELECT FieldID FROM Fields WHERE FieldHeaderID IN ' +
+              '(SELECT HeaderID FROM Headers WHERE HeaderListViewID = :ListViewID)';
+            QueryFields.ParamByName('ListViewID').AsInteger := ListViewID;
+            QueryFields.Open;
+
+            // Field ID'leri bir liste haline getir
+            var FirstField := True;
+            while not QueryFields.Eof do
+            begin
+              if FirstField then
+              begin
+                FieldIDList := IntToStr(QueryFields.FieldByName('FieldID').AsInteger);
+                FirstField := False;
+              end
+              else
+                FieldIDList := FieldIDList + ',' + IntToStr(QueryFields.FieldByName('FieldID').AsInteger);
+
+              QueryFields.Next;
+            end;
+          finally
+            QueryFields.Free;
+          end;
+
+          // Field ID listesi oluşturulduysa, ComboBoxItem'ları sil
+          if FieldIDList <> '' then
+            ExecuteSQL('DELETE FROM ComboBoxItems WHERE ComboBoxItemFieldID IN (' + FieldIDList + ')');
+
+          // 2. Sonra Field tablosundaki bağlı kayıtları temizle
+          ExecuteSQL('DELETE FROM Fields WHERE FieldHeaderID IN ' +
+                    '(SELECT HeaderID FROM Headers WHERE HeaderListViewID = ' + IntToStr(ListViewID) + ')');
+
+          // 3. En son Headers tablosundaki bağlı kayıtları temizle
           ExecuteSQL('DELETE FROM Headers WHERE HeaderListViewID = ' + IntToStr(ListViewID));
         end;
       finally
@@ -687,5 +729,4 @@ begin
     JSONObject.Free;
   end;
 end;
-
 end.
