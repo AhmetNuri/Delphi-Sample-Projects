@@ -1,4 +1,4 @@
- unit ExpandableListView;
+unit ExpandableListView;
 
 interface
 
@@ -163,7 +163,8 @@ end;
 
 destructor THeaderInfo.Destroy;
 begin
-  ChildItems.Free;
+
+   FreeAndNil( ChildItems);
   inherited;
 end;
 
@@ -224,9 +225,9 @@ var
 begin
   // HeaderInfo nesnelerini temizle
   for i := 0 to FHeaders.Count - 1 do
-    FHeaders[i].Free;
+   FreeAndNil( FHeaders[i]);
 
-  FHeaders.Free;
+  FreeAndNil( FHeaders);
   inherited;
 end;
 
@@ -419,7 +420,7 @@ begin
   try
     // Önce mevcut başlıkları temizle
     for i := FHeaders.Count - 1 downto 0 do
-      FHeaders[i].Free;
+      FreeAndNil( FHeaders[i]);
     FHeaders.Clear;
 
     // Tüm liste öğelerini temizle
@@ -592,7 +593,7 @@ begin
         Result := True;
 
     finally
-      RootObj.Free;
+      FreeAndNil( RootObj);
     end;
   except
     on E: Exception do
@@ -692,7 +693,7 @@ begin
     on E: Exception do
     begin
       if HeaderInfo <> nil then
-        HeaderInfo.Free;
+        FreeAndNil( HeaderInfo);
       Result := nil;
     end;
   end;
@@ -715,10 +716,10 @@ begin
         JSONStr := StringStream.DataString;
         Result := LoadFromJSON(JSONStr);
       finally
-        StringStream.Free;
+        FreeAndNil( StringStream);
       end;
     finally
-      FileStream.Free;
+      FreeAndNil( FileStream);
     end;
   except
     on E: Exception do
@@ -2048,7 +2049,7 @@ begin
     else
     begin
       // Desteklenmeyen bileşen tipi
-      ValueObj.Free;
+      FreeAndNil( ValueObj);
       Result := nil;
       Exit;
     end;
@@ -2057,7 +2058,7 @@ begin
   except
     on E: Exception do
     begin
-      ValueObj.Free;
+      FreeAndNil( ValueObj);
       Result := nil;
     end;
   end;
