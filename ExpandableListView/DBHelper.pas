@@ -95,7 +95,7 @@ begin
   else Result := 'TEXT'; // Varsayılan
 end;
 
-function TDBHelper.GetFieldType(const AFieldType: string): string;
+ function TDBHelper.GetFieldType(const AFieldType: string): string;
 begin
   // Alan tipi için standart dönüşüm
   if AFieldType = 'edit' then Result := 'edit'
@@ -104,6 +104,7 @@ begin
   else if AFieldType = 'switch' then Result := 'switch'
   else if AFieldType = 'combobox' then Result := 'combobox'
   else if AFieldType = 'colorbox' then Result := 'colorbox'
+  else if AFieldType = 'radiobutton' then Result := 'radiobutton'
   else Result := 'edit'; // Varsayılan
 end;
 
@@ -122,11 +123,16 @@ begin
   // Create main JSON object
   JSONObject := TJSONObject.Create;
   try
-    // Create Metadata section
+    // Create Metadata section with updated values
     MetadataObject := TJSONObject.Create;
-    MetadataObject.AddPair('CreatedAt', TJSONString.Create('2025-04-01 08:29:58'));
+    MetadataObject.AddPair('CreatedAt', TJSONString.Create('2025-04-01 17:13:02'));
     MetadataObject.AddPair('CreatedBy', TJSONString.Create('AhmetNuri'));
-    MetadataObject.AddPair('Version', TJSONString.Create('1.0'));
+    MetadataObject.AddPair('Version', TJSONString.Create('1.1'));
+
+    // Eğer liste adı belirtilmişse, metadata'ya ekle
+    if AListViewName <> '' then
+      MetadataObject.AddPair('ListName', TJSONString.Create(AListViewName));
+
     JSONObject.AddPair('Metadata', MetadataObject);
 
     // Create query objects
@@ -161,6 +167,13 @@ begin
       begin
         ListViewID := QueryListViews.FieldByName('ListViewID').AsInteger;
 
+        // Eğer liste adı daha önce metadata'ya eklenmemişse ve bir liste bulunduysa
+        if (AListViewName = '')  then
+        begin
+          var CurrentListName := QueryListViews.FieldByName('ListViewName').AsString;
+          MetadataObject.AddPair('ListName', TJSONString.Create(CurrentListName));
+        end;
+
         // Headers query
         QueryHeaders.SQL.Text := 'SELECT * FROM Headers WHERE HeaderListViewID = :ListViewID ORDER BY HeaderOrder';
         QueryHeaders.ParamByName('ListViewID').AsInteger := ListViewID;
@@ -182,10 +195,9 @@ begin
           if not QueryHeaders.FieldByName('HeaderColor').IsNull then
           begin
             var ColorValue := QueryHeaders.FieldByName('HeaderColor').AsString;
-           var  ColorValueInt :=  StrToInt64(ColorValue) ;
+            var ColorValueInt := StrToInt64(ColorValue);
             var HexColor := '#' + IntToHex(ColorValueInt, 8); // Convert to ARGB hex format
             HeaderObj.AddPair('HeaderColor', TJSONString.Create(HexColor));
-
           end;
 
           // Process HeaderSVGData
@@ -219,7 +231,8 @@ begin
             var UITypeStr := 'TEdit'; // Default
             if FieldTypeStr = 'number'.ToLower then UITypeStr := 'TNumberBox'
             else if FieldTypeStr = 'checkbox'.ToLower then UITypeStr := 'TCheckBox'
-            else if FieldTypeStr = 'TSwitch'.ToLower then UITypeStr := 'TSwitch'
+            else if FieldTypeStr = 'radiobutton'.ToLower then UITypeStr := 'TRadioButton'
+            else if FieldTypeStr = 'switch'.ToLower then UITypeStr := 'TSwitch'
             else if FieldTypeStr = 'combobox'.ToLower then UITypeStr := 'TComboBox'
             else if FieldTypeStr = 'colorbox'.ToLower then UITypeStr := 'TColorComboBox';
 
@@ -380,6 +393,41 @@ begin
                 BoolValue := UpperCase(QueryFields.FieldByName('FieldValue').AsString) = 'TRUE';
 
               FieldObj.AddPair('Value', TJSONBool.Create(BoolValue));
+            end
+            else if UITypeStr = 'TRadioButton' then
+            begin
+              // Add Value
+              var BoolValue := False;
+              if not QueryFields.FieldByName('FieldValue').IsNull then
+                BoolValue := UpperCase(QueryFields.FieldByName('FieldValue').AsString) = 'TRUE';
+
+              FieldObj.AddPair('Value', TJSONBool.Create(BoolValue));
+
+              // Add radio button specific properties
+              var GroupName := '';
+              var PropertiesStr := '';
+
+              if not QueryFields.FieldByName('FieldProperties').IsNull then
+                PropertiesStr := QueryFields.FieldByName('FieldProperties').AsString;
+
+              if PropertiesStr <> '' then
+              begin
+                var PropsObj := TJSONObject(TJSONObject.ParseJSONValue(PropertiesStr));
+                if PropsObj <> nil then
+                begin
+                  try
+                    PropsObj.TryGetValue<string>('groupName', GroupName);
+                  finally
+                    PropsObj.Free;
+                  end;
+                end;
+              end;
+
+              // Default group name if none provided
+              if GroupName = '' then
+                GroupName := 'RadioGroup' + IntToStr(HeaderID);
+
+              FieldObj.AddPair('GroupName', TJSONString.Create(GroupName));
             end
             else if UITypeStr = 'TColorComboBox' then
             begin
@@ -612,6 +660,7 @@ begin
               var FieldType := 'edit'; // Default
               if UIType = 'TNumberBox' then FieldType := 'number'
               else if UIType = 'TCheckBox' then FieldType := 'checkbox'
+              else if UIType = 'TRadioButton' then FieldType := 'radiobutton'
               else if UIType = 'TSwitch' then FieldType := 'switch'
               else if UIType = 'TComboBox' then FieldType := 'combobox'
               else if UIType = 'TColorComboBox' then FieldType := 'colorbox';
@@ -663,6 +712,15 @@ begin
                   var SelectedIndex: Integer;
                   if FieldObj.TryGetValue<Integer>('SelectedIndex', SelectedIndex) then
                     PropertiesObj.AddPair('selectedIndex', TJSONNumber.Create(SelectedIndex));
+                end
+                else if UIType = 'TRadioButton' then
+                begin
+                  var GroupName: string;
+                  if FieldObj.TryGetValue<string>('GroupName', GroupName) then
+                    PropertiesObj.AddPair('groupName', TJSONString.Create(GroupName))
+                  else
+                    // Default group name if none provided
+                    PropertiesObj.AddPair('groupName', TJSONString.Create('RadioGroup' + IntToStr(HeaderID)));
                 end;
 
                 // Insert field record
@@ -688,7 +746,14 @@ begin
                       var ItemObj := ItemsArray.Items[k];
 
                       if ItemObj is TJSONString then
-                        ItemValue := (ItemObj as TJSONString).Value
+                      begin
+                        // Temizle JSON string formatını
+                        var StringValue := (ItemObj as TJSONString).Value;
+                        if (Length(StringValue) > 1) and (StringValue[1] = '"') and (StringValue[Length(StringValue)] = '"') then
+                          ItemValue := Copy(StringValue, 2, Length(StringValue) - 2)
+                        else
+                          ItemValue := StringValue;
+                      end
                       else if ItemObj is TJSONObject then
                       begin
                         var ItemValueObj := ItemObj as TJSONObject;
@@ -729,4 +794,5 @@ begin
     JSONObject.Free;
   end;
 end;
+
 end.
