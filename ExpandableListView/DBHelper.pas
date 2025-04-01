@@ -1,4 +1,4 @@
- unit DBHelper;
+  unit DBHelper;
 
 interface
 
@@ -109,16 +109,16 @@ end;
 function TDBHelper.DatabaseToJSON(const AListViewName: string = ''): string;
 var
   JSONObject: TJSONObject;
-  HeaderJSONObject: TJSONObject;
+  HeadersArray: TJSONArray;
   FieldsObject: TJSONObject;
-  PropertiesObject: TJSONObject;
+  ParametersArray: TJSONArray;
+  ComboItemsArray: TJSONArray;
 
   QueryListViews, QueryHeaders, QueryFields, QueryParams, QueryComboItems: TFDQuery;
 
   ListViewID, HeaderID, FieldID: Integer;
-  WhereClause, HeaderTitle: string;
+  WhereClause: string;
 begin
-  // Direkt olarak ana JSON nesnesini oluştur (Headers dizisi olmadan)
   JSONObject := TJSONObject.Create;
   try
     QueryListViews := TFDQuery.Create(nil);
@@ -144,12 +144,14 @@ begin
       QueryListViews.SQL.Text := 'SELECT * FROM ListViews ' + WhereClause;
       QueryListViews.Open;
 
-      // Her ListView için (Genellikle tek bir liste olacak)
+      // Her ListView için
       while not QueryListViews.Eof do
       begin
         ListViewID := QueryListViews.FieldByName('ListViewID').AsInteger;
+        JSONObject.AddPair('Name', TJSONString.Create(QueryListViews.FieldByName('ListViewName').AsString));
+        HeadersArray := TJSONArray.Create;
 
-        // Headers sorgusu - HeaderOrder'a göre sıralı
+        // Headers sorgusu
         QueryHeaders.SQL.Text := 'SELECT * FROM Headers WHERE HeaderListViewID = :ListViewID ORDER BY HeaderOrder';
         QueryHeaders.ParamByName('ListViewID').AsInteger := ListViewID;
         QueryHeaders.Open;
@@ -158,47 +160,38 @@ begin
         while not QueryHeaders.Eof do
         begin
           HeaderID := QueryHeaders.FieldByName('HeaderID').AsInteger;
-          HeaderTitle := QueryHeaders.FieldByName('HeaderTitle').AsString;
+          var HeaderObj := TJSONObject.Create;
 
-          // Her başlık için JSON nesnesi
-          HeaderJSONObject := TJSONObject.Create;
+          // Header bilgilerini ekle
+          HeaderObj.AddPair('Title', TJSONString.Create(QueryHeaders.FieldByName('HeaderTitle').AsString));
 
-          // HeaderIndex ekle
-          if not QueryHeaders.FieldByName('HeaderIndex').IsNull then
-            HeaderJSONObject.AddPair('HeaderIndex', TJSONNumber.Create(QueryHeaders.FieldByName('HeaderIndex').AsInteger))
-          else if not QueryHeaders.FieldByName('HeaderOrder').IsNull then
-            HeaderJSONObject.AddPair('HeaderIndex', TJSONNumber.Create(QueryHeaders.FieldByName('HeaderOrder').AsInteger));
-
-          // HeaderColor ekle - orijinal formatta (renk kodunu değiştirmeden)
+          // HeaderColor ekle (null kontrolü yap)
           if not QueryHeaders.FieldByName('HeaderColor').IsNull then
-            HeaderJSONObject.AddPair('HeaderColor', TJSONString.Create(QueryHeaders.FieldByName('HeaderColor').AsString));
+            HeaderObj.AddPair('Color', TJSONString.Create(QueryHeaders.FieldByName('HeaderColor').AsString));
 
-          // HeaderSVGData ekle
+          // HeaderSVGData ekle (null kontrolü yap)
           if not QueryHeaders.FieldByName('HeaderSVGData').IsNull then
-            HeaderJSONObject.AddPair('SVGData', TJSONString.Create(QueryHeaders.FieldByName('HeaderSVGData').AsString));
+            HeaderObj.AddPair('SVGData', TJSONString.Create(QueryHeaders.FieldByName('HeaderSVGData').AsString));
+
+          // HeaderOrder ekle
+          HeaderObj.AddPair('Order', TJSONNumber.Create(QueryHeaders.FieldByName('HeaderOrder').AsInteger));
 
           // Fields nesnesi
           FieldsObject := TJSONObject.Create;
 
-          // Fields sorgusu - FieldOrder'a göre sıralı
-          // GÜNCELLEME: Sorgu değişmedi çünkü filtreleme uygulama kodunda yapılacak
+          // Fields sorgusu
           QueryFields.SQL.Text := 'SELECT * FROM Fields WHERE FieldHeaderID = :HeaderID ORDER BY FieldOrder';
           QueryFields.ParamByName('HeaderID').AsInteger := HeaderID;
           QueryFields.Open;
-          QueryFields.First;
+
           // Her Field için
           while not QueryFields.Eof do
           begin
             FieldID := QueryFields.FieldByName('FieldID').AsInteger;
             var FieldName := QueryFields.FieldByName('FieldName').AsString;
-            var FieldLabel := QueryFields.FieldByName('FieldLabel').AsString;
             var FieldObj := TJSONObject.Create;
 
-            // Alan yoksa etiketi kullan
-            if FieldName.Trim = '' then
-              FieldName := FieldLabel;
-
-            // GÜNCELLEME: Sadece belirtilen alanları ekle
+            // Field bilgilerini ekle
             if not QueryFields.FieldByName('FieldValue').IsNull then
               FieldObj.AddPair('Value', TJSONString.Create(QueryFields.FieldByName('FieldValue').AsString));
 
@@ -206,51 +199,43 @@ begin
               FieldObj.AddPair('DataType', TJSONString.Create(QueryFields.FieldByName('FieldDataType').AsString));
 
             if not QueryFields.FieldByName('FieldType').IsNull then
-              FieldObj.AddPair('UIType', TJSONString.Create(QueryFields.FieldByName('FieldType').AsString));
+              FieldObj.AddPair('Type', TJSONString.Create(QueryFields.FieldByName('FieldType').AsString));
 
             if not QueryFields.FieldByName('FieldLabel').IsNull then
-              FieldObj.AddPair('labelText', TJSONString.Create(QueryFields.FieldByName('FieldLabel').AsString));
+              FieldObj.AddPair('Label', TJSONString.Create(QueryFields.FieldByName('FieldLabel').AsString));
 
-
-            // FieldParameters tablosundan Properties oluştur
-            QueryParams.SQL.Text := 'SELECT * FROM FieldParameters WHERE FieldID = :FieldID';
-            QueryParams.ParamByName('FieldID').AsInteger := FieldID;
-            QueryParams.Open;
-
-            // Properties için yeni bir JSONObject oluştur
-            PropertiesObject := TJSONObject.Create;
-
-            // Parametreler varsa, Properties nesnesini doldur
-            if not QueryParams.IsEmpty then
-            begin
-              while not QueryParams.Eof do
-              begin
-                var ParamName := QueryParams.FieldByName('ParameterName').AsString;
-                var ParamValue := QueryParams.FieldByName('ParameterValue').AsString;
-
-                // GÜNCELLEME: ParameterName belirtilen alanlardan biri ise eklemiyoruz
-                if (ParamName <> 'FieldName') and
-                   (ParamName <> 'FieldValue') and
-                   (ParamName <> 'FieldDataType') and
-                   (ParamName <> 'FieldType') and
-                   (ParamName <> 'FieldLabel') then
-                begin
-                  // Parametreyi Properties'e ekle
-                  FieldObj.AddPair(ParamName, TJSONString.Create(ParamValue));
-                end;
-                QueryParams.Next;
-              end;
-            end;
-
-            // Properties nesnesini ekle (boş olsa bile)
-            FieldObj.AddPair('Properties', PropertiesObject);
+            if not QueryFields.FieldByName('FieldProperties').IsNull then
+              FieldObj.AddPair('Properties', TJSONString.Create(QueryFields.FieldByName('FieldProperties').AsString));
 
             if not QueryFields.FieldByName('FieldOrder').IsNull then
               FieldObj.AddPair('Order', TJSONNumber.Create(QueryFields.FieldByName('FieldOrder').AsInteger));
 
+            // FieldParameters sorgusu
+            QueryParams.SQL.Text := 'SELECT * FROM FieldParameters WHERE FieldID = :FieldID';
+            QueryParams.ParamByName('FieldID').AsInteger := FieldID;
+            QueryParams.Open;
+
+            // Parametreler varsa ekle
+            if not QueryParams.IsEmpty then
+            begin
+              ParametersArray := TJSONArray.Create;
+
+              // Her parametre için
+              while not QueryParams.Eof do
+              begin
+                var ParamObj := TJSONObject.Create;
+                ParamObj.AddPair('Name', TJSONString.Create(QueryParams.FieldByName('ParameterName').AsString));
+                ParamObj.AddPair('Value', TJSONString.Create(QueryParams.FieldByName('ParameterValue').AsString));
+                ParametersArray.Add(ParamObj);
+                QueryParams.Next;
+              end;
+
+              FieldObj.AddPair('Parameters', ParametersArray);
+            end;
+
             // ComboBox öğeleri için
             if (not QueryFields.FieldByName('FieldType').IsNull) and
-               (QueryFields.FieldByName('FieldType').AsString.ToLower = 'combobox') then
+               (QueryFields.FieldByName('FieldType').AsString = 'combobox') then
             begin
               // ComboBoxItems sorgusu
               QueryComboItems.SQL.Text := 'SELECT * FROM ComboBoxItems WHERE ComboBoxItemFieldID = :FieldID ORDER BY ComboBoxItemOrder';
@@ -260,13 +245,17 @@ begin
               // ComboBox öğeleri varsa ekle
               if not QueryComboItems.IsEmpty then
               begin
-                var ComboItemsArray := TJSONArray.Create;
+                ComboItemsArray := TJSONArray.Create;
 
                 // Her ComboBox öğesi için
                 while not QueryComboItems.Eof do
                 begin
                   var ItemObj := TJSONObject.Create;
                   ItemObj.AddPair('Value', TJSONString.Create(QueryComboItems.FieldByName('ComboBoxItemValue').AsString));
+
+                  if not QueryComboItems.FieldByName('ComboBoxItemOrder').IsNull then
+                    ItemObj.AddPair('Order', TJSONNumber.Create(QueryComboItems.FieldByName('ComboBoxItemOrder').AsInteger));
+
                   ComboItemsArray.Add(ItemObj);
                   QueryComboItems.Next;
                 end;
@@ -275,19 +264,21 @@ begin
               end;
             end;
 
-            // Field'ı Fields nesnesine ekle (FieldLabel'i anahtar olarak kullan)
+            // Field'ı Fields nesnesine ekle (FieldName'i anahtar olarak kullan)
             FieldsObject.AddPair(FieldName, FieldObj);
             QueryFields.Next;
           end;
 
-          // Fields nesnesini Header'a ekle
-          HeaderJSONObject.AddPair('Fields', FieldsObject);
+          // Fields nesnesini Header'a ekle (boş olsa bile eklemek zorundayız)
+          HeaderObj.AddPair('Fields', FieldsObject);
 
-          // Bu Header'ı ana JSON'a ekle (başlık adını anahtar olarak kullan)
-          JSONObject.AddPair(HeaderTitle, HeaderJSONObject);
+          // Header'ı Headers dizisine ekle
+          HeadersArray.Add(HeaderObj);
           QueryHeaders.Next;
         end;
 
+        // Headers dizisini ana JSON nesnesine ekle
+        JSONObject.AddPair('Headers', HeadersArray);
         QueryListViews.Next;
       end;
 
@@ -309,7 +300,6 @@ begin
     end;
   end;
 end;
-
 function TDBHelper.JSONToDatabase(const AJSON: string; const AListViewName: string = ''): Integer;
 var
   JSONObject: TJSONObject;
