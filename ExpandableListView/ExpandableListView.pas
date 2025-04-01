@@ -1,4 +1,4 @@
-unit ExpandableListView;
+ unit ExpandableListView;
 
 interface
 
@@ -12,7 +12,7 @@ uses
   FMX.Filter.Effects, System.Skia, FMX.Skia, FMX.Text, System.JSON, Math,
   StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar, FMX.DateTimeCtrls.Types
 
-  , System.DateUtils  ;
+    , System.DateUtils;
 // SVGIcon için eklendi
 
 type
@@ -31,7 +31,7 @@ type
   end;
 
   TControlType = (ctEdit, ctNumberBox, ctCheckBox, ctSwitch, ctComboBox,
-    ctColorComboBox);
+    ctColorComboBox, ctRadioButton);
   TNumberValueType = (nvtInteger, nvtFloat, nvtCurrency);
 
   THeaderClickEvent = procedure(Sender: TObject; HeaderInfo: THeaderInfo)
@@ -48,8 +48,8 @@ type
     FHeaderTextColor: TAlphaColor;
     FHeaderTextSize: Single;
     FItemTextSize: Single;
-  FEnableLogging: Boolean;  // Loglama açık/kapalı durumu
-  FLogFilePath: string;     // Log dosyası yolu
+    FEnableLogging: Boolean; // Loglama açık/kapalı durumu
+    FLogFilePath: string; // Log dosyası yolu
 
     procedure CreateHeaderSection(AHeaderInfo: THeaderInfo);
     procedure HeaderRectangleClick(Sender: TObject);
@@ -66,12 +66,12 @@ type
     procedure ProcessLayoutComponents(Layout: TLayout; const FieldName: string;
       FieldsObj: TJSONObject);
     function FindLabelTextForComponent(Component: TComponent): string;
-    procedure  DebugLog(const AMessage: string);
+    procedure DebugLog(const AMessage: string);
 
   protected
     procedure Loaded; override;
   public
-     FHeaders: TList<THeaderInfo>;
+    FHeaders: TList<THeaderInfo>;
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -98,6 +98,9 @@ type
     function AddColorBoxField(AHeaderInfo: THeaderInfo;
       const AFieldName: string;
       ASelectedColor: TAlphaColor = TAlphaColorRec.Blue): TColorComboBox;
+    function AddRadioButtonField(AHeaderInfo: THeaderInfo;
+      const AFieldName: string; AValue: Boolean): TRadioButton;
+    // Add the declaration here
 
     // SVG ikonu ayarlamak için
     procedure SetHeaderSVG(AHeaderInfo: THeaderInfo; const ASVGData: string);
@@ -120,7 +123,8 @@ type
       : THeaderInfo;
     procedure LoadFieldsFromJSON(HeaderInfo: THeaderInfo;
       FieldsObj: TJSONObject);
-function  GenerateComponentName(Component: TComponent; const BaseName: string; Index: Integer): string;
+    function GenerateComponentName(Component: TComponent;
+      const BaseName: string; Index: Integer): string;
   published
     property OnHeaderClick: THeaderClickEvent read FOnHeaderClick
       write FOnHeaderClick;
@@ -133,8 +137,8 @@ function  GenerateComponentName(Component: TComponent; const BaseName: string; I
       write FHeaderTextColor;
     property HeaderTextSize: Single read FHeaderTextSize write FHeaderTextSize;
     property ItemTextSize: Single read FItemTextSize write FItemTextSize;
- property EnableLogging: Boolean read FEnableLogging write FEnableLogging;
-  property LogFilePath: string read FLogFilePath write FLogFilePath;
+    property EnableLogging: Boolean read FEnableLogging write FEnableLogging;
+    property LogFilePath: string read FLogFilePath write FLogFilePath;
   end;
 
 procedure Register;
@@ -164,7 +168,7 @@ end;
 destructor THeaderInfo.Destroy;
 begin
 
-   FreeAndNil( ChildItems);
+  FreeAndNil(ChildItems);
   inherited;
 end;
 
@@ -187,9 +191,9 @@ begin
   FHeaderTextColor := TAlphaColorRec.White;
   FHeaderTextSize := 16;
   FItemTextSize := 14;
-   // Loglama için varsayılan ayarlar
+  // Loglama için varsayılan ayarlar
   FEnableLogging := False;
-  FLogFilePath :=  ( 'ExpandableListView.log');
+  FLogFilePath := ('ExpandableListView.log');
 end;
 
 procedure TExpandableListView.DebugLog(const AMessage: string);
@@ -197,12 +201,13 @@ procedure TExpandableListView.DebugLog(const AMessage: string);
 var
   LogMessage: string;
   LogFile: TextFile;
-  begin
- // Eğer loglama etkinse, dosyaya da yaz
+begin
+  // Eğer loglama etkinse, dosyaya da yaz
   if FEnableLogging then
   begin
     try
-      LogMessage := Format('[%s] %s', [FormatDateTime('yyyy-mm-dd hh:nn:ss', Now), AMessage]);
+      LogMessage := Format('[%s] %s', [FormatDateTime('yyyy-mm-dd hh:nn:ss',
+        Now), AMessage]);
 
       AssignFile(LogFile, FLogFilePath);
       if FileExists(FLogFilePath) then
@@ -225,9 +230,9 @@ var
 begin
   // HeaderInfo nesnelerini temizle
   for i := 0 to FHeaders.Count - 1 do
-   FreeAndNil( FHeaders[i]);
+    FreeAndNil(FHeaders[i]);
 
-  FreeAndNil( FHeaders);
+  FreeAndNil(FHeaders);
   inherited;
 end;
 
@@ -237,7 +242,8 @@ begin
   // Component tamamen yüklendiğinde çağrılır
 end;
 
- procedure TExpandableListView.LoadFieldsFromJSON(HeaderInfo: THeaderInfo; FieldsObj: TJSONObject);
+procedure TExpandableListView.LoadFieldsFromJSON(HeaderInfo: THeaderInfo;
+  FieldsObj: TJSONObject);
 var
   i: Integer;
   FieldName: string;
@@ -349,6 +355,19 @@ begin
               nvtFloat, VertIncrement);
           end;
         end
+
+        else if (FieldValue is TJSONString) and
+          (LowerCase(ValueType) = 'radiobutton') then
+        begin
+          var
+          BoolValue := (ActualValue as TJSONBool).AsBoolean;
+
+          if LabelText <> '' then
+            FieldName := LabelText;
+
+          AddRadioButtonField(HeaderInfo, FieldName, BoolValue);
+          // Add this block
+        end
         else if ActualValue is TJSONBool then
         begin
           var
@@ -359,6 +378,7 @@ begin
 
           AddCheckBoxField(HeaderInfo, FieldName, BoolValue);
         end
+
         else if ActualValue is TJSONString then
         begin
           var
@@ -420,7 +440,7 @@ begin
   try
     // Önce mevcut başlıkları temizle
     for i := FHeaders.Count - 1 downto 0 do
-      FreeAndNil( FHeaders[i]);
+      FreeAndNil(FHeaders[i]);
     FHeaders.Clear;
 
     // Tüm liste öğelerini temizle
@@ -439,13 +459,13 @@ begin
       if RootObj.TryGetValue<TJSONObject>('Metadata', MetadataObj) then
       begin
         if MetadataObj.TryGetValue('CreatedAt', MetadataCreatedAt) then
-          DebugLog (PChar('JSON oluşturma zamanı: ' + MetadataCreatedAt));
+          DebugLog(PChar('JSON oluşturma zamanı: ' + MetadataCreatedAt));
 
         if MetadataObj.TryGetValue('CreatedBy', MetadataCreatedBy) then
-          DebugLog (PChar('JSON oluşturan kullanıcı: ' + MetadataCreatedBy));
+          DebugLog(PChar('JSON oluşturan kullanıcı: ' + MetadataCreatedBy));
 
         if MetadataObj.TryGetValue('Version', MetadataVersion) then
-          DebugLog (PChar('JSON versiyon: ' + MetadataVersion));
+          DebugLog(PChar('JSON versiyon: ' + MetadataVersion));
       end;
 
       // Yeni format (Headers array olarak)
@@ -460,7 +480,8 @@ begin
             // Başlık bilgilerini al
             if not HeaderObj.TryGetValue('Title', HeaderTitle) then
             begin
-              ShowMessage('Hata: Başlık ' + IntToStr(i) + ' için Title bilgisi eksik');
+              ShowMessage('Hata: Başlık ' + IntToStr(i) +
+                ' için Title bilgisi eksik');
               Continue;
             end;
 
@@ -472,7 +493,8 @@ begin
             HeaderColor := TAlphaColorRec.Blue; // Varsayılan renk
             if HeaderObj.GetValue('HeaderColor') <> nil then
             begin
-              var ColorStr := HeaderObj.GetValue('HeaderColor').Value;
+              var
+              ColorStr := HeaderObj.GetValue('HeaderColor').Value;
               if ColorStr.StartsWith('#') then
               begin
                 // Hex formatından renk oluştur
@@ -483,7 +505,8 @@ begin
                 try
                   HeaderColor := ColorStr.ToInt64;
                 except
-                  HeaderColor := TAlphaColorRec.Blue; // Geçersiz renk varsa varsayılan kullan
+                  HeaderColor := TAlphaColorRec.Blue;
+                  // Geçersiz renk varsa varsayılan kullan
                 end;
               end;
             end;
@@ -511,89 +534,93 @@ begin
             end;
           except
             on E: Exception do
-              ShowMessage('Başlık işleme hatası: Başlık ' + IntToStr(i) + ' - ' + E.Message);
+              ShowMessage('Başlık işleme hatası: Başlık ' + IntToStr(i) + ' - '
+                + E.Message);
           end;
         end;
 
         Result := True;
       end
       else
-       exit;
+        Exit;
 
-        // Eski format (doğrudan başlıklar ana objede)
-        // Bu kısmı backward compatibility (geriye dönük uyumluluk) için tutuyoruz
-        for i := 0 to RootObj.Count - 1 do
-        begin
-          try
-            HeaderTitle := RootObj.Pairs[i].JsonString.Value;
+      // Eski format (doğrudan başlıklar ana objede)
+      // Bu kısmı backward compatibility (geriye dönük uyumluluk) için tutuyoruz
+      for i := 0 to RootObj.Count - 1 do
+      begin
+        try
+          HeaderTitle := RootObj.Pairs[i].JsonString.Value;
 
-            // Metadata'yı atla
-            if HeaderTitle = 'Metadata' then
-              Continue;
-            if (not(RootObj.Pairs[i].JsonValue is TJSONObject) ) or (not(RootObj.Pairs[i].JsonValue is TJSONArray)) then
+          // Metadata'yı atla
+          if HeaderTitle = 'Metadata' then
+            Continue;
+          if (not(RootObj.Pairs[i].JsonValue is TJSONObject)) or
+            (not(RootObj.Pairs[i].JsonValue is TJSONArray)) then
+          begin
+            DebugLog('Hata: "' + HeaderTitle + '" için geçersiz başlık yapısı');
+            // var xx:=    RootObj.Pairs[i].JsonValue.ToString;
+
+            Continue;
+          end;
+
+          HeaderObj := RootObj.Pairs[i].JsonValue as TJSONObject;
+
+          // Başlık indeksi ve rengi
+          HeaderIndex := 0;
+          if HeaderObj.TryGetValue('HeaderIndex', HeaderIndex) = False then
+            HeaderIndex := i;
+
+          HeaderColor := TAlphaColorRec.Blue;
+          if HeaderObj.GetValue('HeaderColor') <> nil then
+          begin
+            var
+            ColorStr := HeaderObj.GetValue('HeaderColor').Value;
+            if ColorStr.StartsWith('#') then
             begin
-             DebugLog('Hata: "' + HeaderTitle + '" için geçersiz başlık yapısı');
-//             var xx:=    RootObj.Pairs[i].JsonValue.ToString;
-
-              Continue;
-            end;
-
-            HeaderObj := RootObj.Pairs[i].JsonValue as TJSONObject;
-
-            // Başlık indeksi ve rengi
-            HeaderIndex := 0;
-            if HeaderObj.TryGetValue('HeaderIndex', HeaderIndex) = False then
-              HeaderIndex := i;
-
-            HeaderColor := TAlphaColorRec.Blue;
-            if HeaderObj.GetValue('HeaderColor') <> nil then
-            begin
-              var ColorStr := HeaderObj.GetValue('HeaderColor').Value;
-              if ColorStr.StartsWith('#') then
-              begin
-                HeaderColor := HexToTAlphaColor(ColorStr);
-              end
-              else
-                HeaderColor := ColorStr.ToInt64;
-            end;
-
-            // Başlık oluştur
-            HeaderInfo := AddHeader(HeaderTitle, HeaderIndex, HeaderColor);
-            if HeaderInfo = nil then
-            begin
-              ShowMessage('Başlık oluşturma hatası: ' + HeaderTitle);
-              Continue;
-            end;
-
-            // SVG verisi
-            if HeaderObj.GetValue('SVGData') <> nil then
-            begin
-              SVGData := HeaderObj.GetValue('SVGData').Value;
-              if SVGData <> '' then
-                SetHeaderSVG(HeaderInfo, SVGData);
-            end;
-
-            // Alanları işle
-            if HeaderObj.GetValue('Fields') <> nil then
-            begin
-              FieldsObj := HeaderObj.GetValue('Fields') as TJSONObject;
-              LoadFieldsFromJSON(HeaderInfo, FieldsObj);
+              HeaderColor := HexToTAlphaColor(ColorStr);
             end
             else
-            begin
-              // Eski format - doğrudan alanlar
-              LoadFieldsFromJSON(HeaderInfo, HeaderObj);
-            end;
-          except
-            on E: Exception do
-              ShowMessage('Başlık işleme hatası: ' + HeaderTitle + ' - ' + E.Message);
+              HeaderColor := ColorStr.ToInt64;
           end;
-        end;
 
-        Result := True;
+          // Başlık oluştur
+          HeaderInfo := AddHeader(HeaderTitle, HeaderIndex, HeaderColor);
+          if HeaderInfo = nil then
+          begin
+            ShowMessage('Başlık oluşturma hatası: ' + HeaderTitle);
+            Continue;
+          end;
+
+          // SVG verisi
+          if HeaderObj.GetValue('SVGData') <> nil then
+          begin
+            SVGData := HeaderObj.GetValue('SVGData').Value;
+            if SVGData <> '' then
+              SetHeaderSVG(HeaderInfo, SVGData);
+          end;
+
+          // Alanları işle
+          if HeaderObj.GetValue('Fields') <> nil then
+          begin
+            FieldsObj := HeaderObj.GetValue('Fields') as TJSONObject;
+            LoadFieldsFromJSON(HeaderInfo, FieldsObj);
+          end
+          else
+          begin
+            // Eski format - doğrudan alanlar
+            LoadFieldsFromJSON(HeaderInfo, HeaderObj);
+          end;
+        except
+          on E: Exception do
+            ShowMessage('Başlık işleme hatası: ' + HeaderTitle + ' - ' +
+              E.Message);
+        end;
+      end;
+
+      Result := True;
 
     finally
-      FreeAndNil( RootObj);
+      FreeAndNil(RootObj);
     end;
   except
     on E: Exception do
@@ -693,7 +720,7 @@ begin
     on E: Exception do
     begin
       if HeaderInfo <> nil then
-        FreeAndNil( HeaderInfo);
+        FreeAndNil(HeaderInfo);
       Result := nil;
     end;
   end;
@@ -716,10 +743,10 @@ begin
         JSONStr := StringStream.DataString;
         Result := LoadFromJSON(JSONStr);
       finally
-        FreeAndNil( StringStream);
+        FreeAndNil(StringStream);
       end;
     finally
-      FreeAndNil( FileStream);
+      FreeAndNil(FileStream);
     end;
   except
     on E: Exception do
@@ -737,7 +764,9 @@ begin
   CreateHeaderSection(HeaderInfo);
   Result := HeaderInfo;
 end;
- function TExpandableListView.FindLabelTextForComponent(Component: TComponent): string;
+
+function TExpandableListView.FindLabelTextForComponent
+  (Component: TComponent): string;
 var
   ParentComponent: TComponent;
   i: Integer;
@@ -747,14 +776,14 @@ begin
   Result := '';
 
   // Component'i TControl'e dönüştür (eğer mümkünse)
-  if not (Component is TControl) then
+  if not(Component is TControl) then
     Exit;
 
   Control := TControl(Component);
 
   // Bileşenin ebeveyn bileşenini bul (genellikle bir Layout)
   ParentComponent := Component.Owner;
-  if not (ParentComponent is TLayout) then
+  if not(ParentComponent is TLayout) then
     Exit;
 
   // Bu Layout içindeki tüm Label bileşenlerini kontrol et
@@ -791,7 +820,8 @@ begin
   end;
 end;
 
-function TExpandableListView.GenerateComponentName(Component: TComponent; const BaseName: string; Index: Integer): string;
+function TExpandableListView.GenerateComponentName(Component: TComponent;
+  const BaseName: string; Index: Integer): string;
 var
   TypeName: string;
 begin
@@ -803,7 +833,6 @@ begin
   // Bileşen adını oluştur
   Result := LowerCase(BaseName + '_' + TypeName + IntToStr(Index));
 end;
-
 
 procedure TExpandableListView.CreateHeaderSection(AHeaderInfo: THeaderInfo);
 var
@@ -1070,7 +1099,9 @@ begin
   AHeaderInfo.SVGData := ASVGData;
   UpdateSVGIcon(AHeaderInfo);
 end;
-procedure TExpandableListView.AddDataField(AHeaderInfo: THeaderInfo; const AFieldName: string; AControlType: TControlType);
+
+procedure TExpandableListView.AddDataField(AHeaderInfo: THeaderInfo;
+const AFieldName: string; AControlType: TControlType);
 var
   DataItem: TListBoxItem;
   Layout: TLayout;
@@ -1159,7 +1190,6 @@ begin
       AddColorBoxField(AHeaderInfo, AFieldName, TAlphaColorRec.Blue);
   end;
 end;
-
 
 // Yeni metotlar - belirli kontrol tipleri için
 function TExpandableListView.AddEditField(AHeaderInfo: THeaderInfo;
@@ -1385,6 +1415,26 @@ begin
     on E: Exception do
       raise Exception.Create('AddNumberField Hatası: ' + E.Message);
   end;
+end;
+
+function TExpandableListView.AddRadioButtonField(AHeaderInfo: THeaderInfo;
+const AFieldName: string; AValue: Boolean): TRadioButton;
+var
+  ListItem: TListBoxItem;
+  RadioButton: TRadioButton;
+begin
+  ListItem := TListBoxItem.Create(Self);
+  ListItem.Height := FItemHeight;
+  ListItem.Text := '';
+  AddObject(ListItem);
+
+  RadioButton := TRadioButton.Create(ListItem);
+  RadioButton.Parent := ListItem;
+  RadioButton.Text := AFieldName;
+  RadioButton.IsChecked := AValue;
+
+  AHeaderInfo.ChildItems.Add(ListItem);
+  Result := RadioButton;
 end;
 
 function TExpandableListView.AddCheckBoxField(AHeaderInfo: THeaderInfo;
@@ -1796,7 +1846,6 @@ begin
     ToggleHeaderSection(AHeaderInfo);
 end;
 
-
 function TExpandableListView.ExportToJSON: string;
 var
   RootObj: TJSONObject;
@@ -1812,7 +1861,8 @@ begin
   try
     // Metadata bilgilerini ekle
     MetadataObj := TJSONObject.Create;
-    MetadataObj.AddPair('CreatedAt', TJSONString.Create(FormatDateTime('yyyy-mm-dd hh:nn:ss', Now)));
+    MetadataObj.AddPair('CreatedAt',
+      TJSONString.Create(FormatDateTime('yyyy-mm-dd hh:nn:ss', Now)));
     MetadataObj.AddPair('CreatedBy', TJSONString.Create('AhmetNuri'));
     MetadataObj.AddPair('Version', TJSONString.Create('1.0'));
     RootObj.AddPair('Metadata', MetadataObj);
@@ -1844,9 +1894,10 @@ begin
   end;
 end;
 
- // Layout içindeki bileşenleri işleyen yardımcı fonksiyon
+// Layout içindeki bileşenleri işleyen yardımcı fonksiyon
 
-procedure TExpandableListView.ProcessLayoutComponents(Layout: TLayout; const FieldName: string; FieldsObj: TJSONObject);
+procedure TExpandableListView.ProcessLayoutComponents(Layout: TLayout;
+const FieldName: string; FieldsObj: TJSONObject);
 var
   i: Integer;
   Component: TComponent;
@@ -1870,7 +1921,6 @@ begin
   end;
 end;
 
-
 // Bileşenin geçerli olup olmadığını kontrol eden fonksiyon
 function TExpandableListView.IsValidComponent(Component: TComponent): Boolean;
 begin
@@ -1884,7 +1934,8 @@ begin
 end;
 
 // Bileşen için değer nesnesi oluşturan fonksiyon
-function TExpandableListView.CreateValueObjectForComponent(Component: TComponent): TJSONObject;
+function TExpandableListView.CreateValueObjectForComponent
+  (Component: TComponent): TJSONObject;
 var
   ValueObj: TJSONObject;
   Items: TJSONArray;
@@ -1907,7 +1958,8 @@ begin
 
     if Component is TComboBox then
     begin
-      var ComboBox := TComboBox(Component);
+      var
+      ComboBox := TComboBox(Component);
       Items := TJSONArray.Create;
 
       // ComboBox öğelerini ekle
@@ -1919,7 +1971,8 @@ begin
       ValueObj.AddPair('SelectedIndex', TJSONNumber.Create(ComboBox.ItemIndex));
 
       if ComboBox.ItemIndex >= 0 then
-        ValueObj.AddPair('Value', TJSONString.Create(ComboBox.Items[ComboBox.ItemIndex]))
+        ValueObj.AddPair('Value',
+          TJSONString.Create(ComboBox.Items[ComboBox.ItemIndex]))
       else
         ValueObj.AddPair('Value', TJSONString.Create(''));
     end
@@ -1935,10 +1988,10 @@ begin
     end
     else if Component is TNumberBox then
     begin
-      var NumBox := TNumberBox(Component);
+      var
+      NumBox := TNumberBox(Component);
 
-
-      if  (NumBox.ValueType) = TNumValueType.Integer then
+      if (NumBox.ValueType) = TNumValueType.Integer then
         ValueObj.AddPair('ValueType', TJSONString.Create('Integer'))
       else
         ValueObj.AddPair('ValueType', TJSONString.Create('Float'));
@@ -1946,7 +1999,8 @@ begin
       ValueObj.AddPair('Value', TJSONNumber.Create(NumBox.Value));
       ValueObj.AddPair('Min', TJSONNumber.Create(NumBox.Min));
       ValueObj.AddPair('Max', TJSONNumber.Create(NumBox.Max));
-      ValueObj.AddPair('DecimalDigits', TJSONNumber.Create(NumBox.DecimalDigits));
+      ValueObj.AddPair('DecimalDigits',
+        TJSONNumber.Create(NumBox.DecimalDigits));
 
       // Dikey artırma özelliğini ekle
       if NumBox.Tag = 1 then // Tag=1 dikey artırmayı temsil ediyorsa
@@ -1957,7 +2011,8 @@ begin
     else if Component is TCheckBox then
     begin
       ValueObj.AddPair('ValueType', TJSONString.Create('Boolean'));
-      ValueObj.AddPair('Value', TJSONBool.Create(TCheckBox(Component).IsChecked));
+      ValueObj.AddPair('Value', TJSONBool.Create(TCheckBox(Component)
+        .IsChecked));
     end
     else if Component is TSwitch then
     begin
@@ -1967,16 +2022,19 @@ begin
     else if Component is TColorComboBox then
     begin
       ValueObj.AddPair('ValueType', TJSONString.Create('Color'));
-      ValueObj.AddPair('Value', TJSONString.Create(ColorToString(TColorComboBox(Component).Color)));
+      ValueObj.AddPair('Value',
+        TJSONString.Create(ColorToString(TColorComboBox(Component).Color)));
     end
     else if Component is TColorBox then
     begin
       ValueObj.AddPair('ValueType', TJSONString.Create('Color'));
-      ValueObj.AddPair('Value', TJSONString.Create(ColorToString(TColorBox(Component).Color)));
+      ValueObj.AddPair('Value',
+        TJSONString.Create(ColorToString(TColorBox(Component).Color)));
     end
     else if Component is TTrackBar then
     begin
-      var TrackBar := TTrackBar(Component);
+      var
+      TrackBar := TTrackBar(Component);
 
       ValueObj.AddPair('ValueType', TJSONString.Create('Integer'));
       ValueObj.AddPair('Value', TJSONNumber.Create(TrackBar.Value));
@@ -1992,37 +2050,40 @@ begin
     end
     else if Component is TDateEdit then
     begin
-      var DateEdit := TDateEdit(Component);
+      var
+      DateEdit := TDateEdit(Component);
 
       ValueObj.AddPair('ValueType', TJSONString.Create('Date'));
       ValueObj.AddPair('Value', TJSONString.Create(DateToStr(DateEdit.Date)));
 
       // Tarih formatını ekle
-//      ValueObj.AddPair('Format',  DateToStr(.Create(DateEdit.Date)));
+      // ValueObj.AddPair('Format',  DateToStr(.Create(DateEdit.Date)));
     end
     else if Component is TTimeEdit then
     begin
-      var TimeEdit := TTimeEdit(Component);
+      var
+      TimeEdit := TTimeEdit(Component);
 
       ValueObj.AddPair('ValueType', TJSONString.Create('Time'));
       ValueObj.AddPair('Value', TJSONString.Create(TimeToStr(TimeEdit.Time)));
 
       // Zaman formatını ekle
-//      ValueObj.AddPair('Format', TJSONString.Create(TimeEdit.FormatSettings.ShortTimeFormat));
+      // ValueObj.AddPair('Format', TJSONString.Create(TimeEdit.FormatSettings.ShortTimeFormat));
     end
-//    else if Component is TSpinBox then
-//    begin
-//      var SpinBox := TSpinBox(Component);
-//
-//      ValueObj.AddPair('ValueType', TJSONString.Create('Integer'));
-//      ValueObj.AddPair('Value', TJSONNumber.Create(SpinBox.Value));
-//      ValueObj.AddPair('Min', TJSONNumber.Create(SpinBox.Min));
-//      ValueObj.AddPair('Max', TJSONNumber.Create(SpinBox.Max));
-//      ValueObj.AddPair('Increment', TJSONNumber.Create(SpinBox.Increment));
-//    end
+    // else if Component is TSpinBox then
+    // begin
+    // var SpinBox := TSpinBox(Component);
+    //
+    // ValueObj.AddPair('ValueType', TJSONString.Create('Integer'));
+    // ValueObj.AddPair('Value', TJSONNumber.Create(SpinBox.Value));
+    // ValueObj.AddPair('Min', TJSONNumber.Create(SpinBox.Min));
+    // ValueObj.AddPair('Max', TJSONNumber.Create(SpinBox.Max));
+    // ValueObj.AddPair('Increment', TJSONNumber.Create(SpinBox.Increment));
+    // end
     else if Component is TRadioButton then
     begin
-      var RadioButton := TRadioButton(Component);
+      var
+      RadioButton := TRadioButton(Component);
 
       ValueObj.AddPair('ValueType', TJSONString.Create('Boolean'));
       ValueObj.AddPair('Value', TJSONBool.Create(RadioButton.IsChecked));
@@ -2030,7 +2091,8 @@ begin
     end
     else if Component is TListBox then
     begin
-      var ListBox := TListBox(Component);
+      var
+      ListBox := TListBox(Component);
       Items := TJSONArray.Create;
 
       // ListBox öğelerini ekle
@@ -2042,14 +2104,15 @@ begin
       ValueObj.AddPair('ItemIndex', TJSONNumber.Create(ListBox.ItemIndex));
 
       if ListBox.ItemIndex >= 0 then
-        ValueObj.AddPair('Value', TJSONString.Create(ListBox.Items[ListBox.ItemIndex]))
+        ValueObj.AddPair('Value',
+          TJSONString.Create(ListBox.Items[ListBox.ItemIndex]))
       else
         ValueObj.AddPair('Value', TJSONString.Create(''));
     end
     else
     begin
       // Desteklenmeyen bileşen tipi
-      FreeAndNil( ValueObj);
+      FreeAndNil(ValueObj);
       Result := nil;
       Exit;
     end;
@@ -2058,15 +2121,15 @@ begin
   except
     on E: Exception do
     begin
-      FreeAndNil( ValueObj);
+      FreeAndNil(ValueObj);
       Result := nil;
     end;
   end;
 end;
 
-
 // Bileşeni doğrudan işleyen fonksiyon
-procedure TExpandableListView.ProcessComponent(Component: TComponent; const FieldName: string; FieldsObj: TJSONObject);
+procedure TExpandableListView.ProcessComponent(Component: TComponent;
+const FieldName: string; FieldsObj: TJSONObject);
 var
   ValueObj: TJSONObject;
 begin
@@ -2076,8 +2139,8 @@ begin
     FieldsObj.AddPair(FieldName, ValueObj);
 end;
 
-
-function TExpandableListView.ExportHeaderToJSON(AHeaderInfo: THeaderInfo): TJSONObject;
+function TExpandableListView.ExportHeaderToJSON(AHeaderInfo: THeaderInfo)
+  : TJSONObject;
 var
   HeaderObj: TJSONObject;
   FieldsObj: TJSONObject;
@@ -2092,8 +2155,10 @@ begin
   try
     // Başlık bilgileri
     HeaderObj.AddPair('Title', TJSONString.Create(AHeaderInfo.Title));
-    HeaderObj.AddPair('HeaderIndex', TJSONNumber.Create(AHeaderInfo.ImageIndex));
-    HeaderObj.AddPair('HeaderColor', TJSONString.Create(ColorToString(AHeaderInfo.Color)));
+    HeaderObj.AddPair('HeaderIndex',
+      TJSONNumber.Create(AHeaderInfo.ImageIndex));
+    HeaderObj.AddPair('HeaderColor',
+      TJSONString.Create(ColorToString(AHeaderInfo.Color)));
 
     // SVG verisi varsa ekle
     if AHeaderInfo.SVGData <> '' then
@@ -2105,7 +2170,7 @@ begin
     // Başlığa ait içerik nesnelerini (EditBox, CheckBox vb.) bul ve ekle
     for i := 0 to AHeaderInfo.ChildItems.Count - 1 do
     begin
-      if not (AHeaderInfo.ChildItems[i] is TListBoxItem) then
+      if not(AHeaderInfo.ChildItems[i] is TListBoxItem) then
         Continue;
 
       LayoutChildrenAdded := False;
@@ -2156,7 +2221,6 @@ begin
   end;
 end;
 
-
 procedure TExpandableListView.CollapseHeader(AHeaderInfo: THeaderInfo);
 begin
   if AHeaderInfo.IsExpanded then
@@ -2165,12 +2229,11 @@ end;
 
 function TExpandableListView.ColorToString(Color: TAlphaColor): string;
 begin
-  Result := Format('#%.2X%.2X%.2X%.2X', [
-    TAlphaColorRec(Color).A, // Alpha
-    TAlphaColorRec(Color).R, // Red
-    TAlphaColorRec(Color).G, // Green
-    TAlphaColorRec(Color).B  // Blue
-  ]);  // Boş bir değer üretirse varsayılan renk ata
+  Result := Format('#%.2X%.2X%.2X%.2X', [TAlphaColorRec(Color).A, // Alpha
+  TAlphaColorRec(Color).R, // Red
+  TAlphaColorRec(Color).G, // Green
+  TAlphaColorRec(Color).B // Blue
+    ]); // Boş bir değer üretirse varsayılan renk ata
 
 end;
 
@@ -2191,4 +2254,3 @@ begin
 end;
 
 end.
-
