@@ -1,4 +1,4 @@
- unit ExpandableListView;
+unit ExpandableListView;
 
 interface
 
@@ -67,6 +67,7 @@ type
       FieldsObj: TJSONObject);
     function FindLabelTextForComponent(Component: TComponent): string;
     procedure DebugLog(const AMessage: string);
+    function CreateBackgroundRectangle(Parent: TListBoxItem): TRectangle;
 
   protected
     procedure Loaded; override;
@@ -196,6 +197,20 @@ begin
   FLogFilePath := ('ExpandableListView.log');
 end;
 
+function TExpandableListView.CreateBackgroundRectangle(Parent: TListBoxItem)
+  : TRectangle;
+begin
+  Result := TRectangle.Create(Parent);
+  Result.Fill.Color := TAlphaColorRec.White;
+  Result.Stroke.Kind := TBrushKind.None;
+  Result.Align := TAlignLayout.Client;
+  Result.XRadius := 4;
+  Result.YRadius := 4;
+  Result.Margins.Rect := TRectF.Create(8, 2, 8, 2);
+  Result.Opacity := 0.8;
+  Parent.AddObject(Result);
+end;
+
 procedure TExpandableListView.DebugLog(const AMessage: string);
 
 var
@@ -252,13 +267,14 @@ var
   ActualValue: TJSONValue;
   Min, Max: Double;
   DecimalDigits: Integer;
-  ValueType: string;
+  ValueType, UIType: string;
   VertIncrement: Boolean;
   Items: TJSONArray;
   ItemsArray: array of string;
   SelectedIndex: Integer;
   ColorValue: TAlphaColor;
   LabelText: string;
+  GroupName: string;
 begin
   if (HeaderInfo = nil) or (FieldsObj = nil) then
     Exit;
@@ -279,9 +295,11 @@ begin
       Max := 100;
       DecimalDigits := 2;
       ValueType := 'float';
+      UIType := '';
       VertIncrement := False;
       ActualValue := nil;
       LabelText := ''; // Etiket metni için varsayılan değer
+      GroupName := ''; // RadioButton için grup adı
 
       // JSON nesne kontrolü
       if FieldValue is TJSONObject then
@@ -292,29 +310,55 @@ begin
         if ValueObj.GetValue('labelText') <> nil then
           LabelText := ValueObj.GetValue('labelText').Value;
 
-        // Min, Max, DecimalDigits ve ValueType parametrelerini al
-        if ValueObj.GetValue('Min') <> nil then
-          Min := (ValueObj.GetValue('Min') as TJSONNumber).AsDouble;
+        // UIType değerini al
+        if ValueObj.GetValue('UIType') <> nil then
+          UIType := (ValueObj.GetValue('UIType') as TJSONString).Value;
 
-        if ValueObj.GetValue('Max') <> nil then
-          Max := (ValueObj.GetValue('Max') as TJSONNumber).AsDouble;
-
-        if ValueObj.GetValue('DecimalDigits') <> nil then
-          DecimalDigits := (ValueObj.GetValue('DecimalDigits')
-            as TJSONNumber).AsInt;
-
+        // ValueType değerini al
         if ValueObj.GetValue('ValueType') <> nil then
           ValueType := (ValueObj.GetValue('ValueType') as TJSONString).Value;
 
-        if ValueObj.GetValue('VertIncrement') <> nil then
-          VertIncrement := (ValueObj.GetValue('VertIncrement') as TJSONBool)
-            .AsBoolean;
+        // Radio için GroupName değerini al
+        if ValueObj.GetValue('GroupName') <> nil then
+          GroupName := (ValueObj.GetValue('GroupName') as TJSONString).Value;
 
         // Değeri al
         ActualValue := ValueObj.GetValue('Value');
 
-        // JSON nesne kontrolü
-        if ValueObj.GetValue('Items') <> nil then
+        // UIType'a göre uygun kontrol ekleme kararı ver
+        if UIType = 'TRadioButton' then
+        begin
+          // RadioButton için
+          if ActualValue is TJSONBool then
+          begin
+            var
+            BoolValue := (ActualValue as TJSONBool).AsBoolean;
+            if LabelText <> '' then
+              FieldName := LabelText;
+
+            DebugLog('RadioButton oluşturuluyor: ' + FieldName);
+            var
+            RadioBtn := AddRadioButtonField(HeaderInfo, FieldName, BoolValue);
+
+            // GroupName atama
+            if GroupName <> '' then
+              RadioBtn.GroupName := GroupName;
+          end;
+        end
+        else if UIType = 'TCheckBox' then
+        begin
+          // CheckBox için
+          if ActualValue is TJSONBool then
+          begin
+            var
+            BoolValue := (ActualValue as TJSONBool).AsBoolean;
+            if LabelText <> '' then
+              FieldName := LabelText;
+
+            AddCheckBoxField(HeaderInfo, FieldName, BoolValue);
+          end;
+        end
+        else if ValueObj.GetValue('Items') <> nil then
         begin
           // ComboBox için
           Items := ValueObj.GetValue('Items') as TJSONArray;
@@ -336,7 +380,7 @@ begin
         end
         else if ActualValue is TJSONNumber then
         begin
-          // Sayısal değer
+          // Bu kısımda değişiklik yok - sayısal değerler için olan kısım
           if LabelText <> '' then
             FieldName := LabelText;
 
@@ -355,21 +399,9 @@ begin
               nvtFloat, VertIncrement);
           end;
         end
-
-        else if (FieldValue is TJSONString) and
-          (LowerCase(ValueType) = 'radiobutton') then
-        begin
-          var
-          BoolValue := (ActualValue as TJSONBool).AsBoolean;
-
-          if LabelText <> '' then
-            FieldName := LabelText;
-
-          AddRadioButtonField(HeaderInfo, FieldName, BoolValue);
-          // Add this block
-        end
         else if ActualValue is TJSONBool then
         begin
+          // Boolean değer ama belirli bir UIType yoksa varsayılan olarak CheckBox
           var
           BoolValue := (ActualValue as TJSONBool).AsBoolean;
 
@@ -378,9 +410,9 @@ begin
 
           AddCheckBoxField(HeaderInfo, FieldName, BoolValue);
         end
-
         else if ActualValue is TJSONString then
         begin
+          // Bu kısımda değişiklik yok - string değerler için olan kısım
           var
           StrValue := (ActualValue as TJSONString).Value;
 
@@ -411,13 +443,12 @@ begin
     except
       on E: Exception do
       begin
-        // Hata durumunda işleme devam et
+        DebugLog('Hata: Alan yükleme hatası - ' + FieldName + ': ' + E.Message);
         Continue;
       end;
     end;
   end;
 end;
-
 // JSON dosyasından veri yükleme
 
 function TExpandableListView.LoadFromJSON(const AJSONString: string): Boolean;
@@ -1420,21 +1451,119 @@ end;
 function TExpandableListView.AddRadioButtonField(AHeaderInfo: THeaderInfo;
 const AFieldName: string; AValue: Boolean): TRadioButton;
 var
-  ListItem: TListBoxItem;
-  RadioButton: TRadioButton;
+  DataItem: TListBoxItem;
+  Layout: TLayout;
+  Rectangle: TRectangle;
+  lbl: TLabel;
+  RadioBtn: TRadioButton;
+  HeaderIndex, LastChildIndex: Integer;
 begin
-  ListItem := TListBoxItem.Create(Self);
-  ListItem.Height := FItemHeight;
-  ListItem.Text := '';
-  AddObject(ListItem);
+  Result := nil;
+  try
+    // Başlık öğesinin indeksini bul
+    HeaderIndex := FindListBoxItemIndex(AHeaderInfo.HeaderItem);
+    if HeaderIndex < 0 then
+    begin
+      raise Exception.Create('Başlık öğesi bulunamadı!');
+      Exit;
+    end;
 
-  RadioButton := TRadioButton.Create(ListItem);
-  RadioButton.Parent := ListItem;
-  RadioButton.Text := AFieldName;
-  RadioButton.IsChecked := AValue;
+    // Son alt öğe indeksini bul
+    LastChildIndex := HeaderIndex;
+    for var i := 0 to AHeaderInfo.ChildItems.Count - 1 do
+    begin
+      var
+      idx := FindListBoxItemIndex(AHeaderInfo.ChildItems[i]);
+      if idx > LastChildIndex then
+        LastChildIndex := idx;
+    end;
 
-  AHeaderInfo.ChildItems.Add(ListItem);
-  Result := RadioButton;
+    // Yeni alt öğeyi oluştur
+    DataItem := TListBoxItem.Create(Self);
+    DataItem.Height := 0; // Başlangıçta 0 yükseklik
+    DataItem.Selectable := False;
+    DataItem.Text := '';
+    DataItem.Visible := False; // Başlangıçta gizli
+    DataItem.Opacity := 0; // Başlangıçta saydam
+
+    // Alt öğeyi doğru pozisyona ekle
+    InsertObject(LastChildIndex + 1, DataItem);
+
+    // HeaderInfo'nun ChildItems listesine ekle
+    AHeaderInfo.ChildItems.Add(DataItem);
+
+    // Arkaplan
+    Rectangle := TRectangle.Create(DataItem);
+    Rectangle.Fill.Color := TAlphaColorRec.White;
+    Rectangle.Stroke.Color := $FFE0E0E0;
+    Rectangle.Stroke.Thickness := 1;
+    Rectangle.Align := TAlignLayout.Client;
+    Rectangle.XRadius := 6;
+    Rectangle.YRadius := 6;
+    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
+    Rectangle.Opacity := 0.95;
+    DataItem.AddObject(Rectangle);
+
+    // Ana layout
+    Layout := TLayout.Create(DataItem);
+    Layout.Align := TAlignLayout.Client;
+    Layout.Padding.Rect := TRectF.Create(16, 4, 16, 4);
+    DataItem.AddObject(Layout);
+
+    // Etiket
+    lbl := TLabel.Create(Layout);
+    lbl.Align := TAlignLayout.Left;
+    lbl.Width := 120;
+    lbl.Text := AFieldName;
+    lbl.StyledSettings := [];
+    lbl.TextSettings.Font.Size := 14;
+    lbl.TextSettings.Font.Family := 'Segoe UI';
+    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
+    Layout.AddObject(lbl);
+
+    // CheckBox kontrolü
+    RadioBtn := TRadioButton.Create(Layout);
+    RadioBtn.Align := TAlignLayout.Right;
+    RadioBtn.Width := 60;
+    RadioBtn.StyleLookup := 'radiobuttonstyle';
+    RadioBtn.IsChecked := AValue;
+    RadioBtn.Text := ''; // RadioButton metnini boş yap
+    RadioBtn.GroupName := 'RadioGroup'  ;
+   RadioBtn.Name := GenerateComponentName(RadioBtn, AFieldName, Random(10000));
+
+    Layout.AddObject(RadioBtn);
+
+    Result := RadioBtn;
+
+    // Eğer başlık açıksa, yeni eklenen öğeyi hemen göster
+    if AHeaderInfo.IsExpanded then
+    begin
+      DataItem.Visible := True;
+      DataItem.Opacity := 0;
+      DataItem.Height := 0;
+
+      TAnimator.AnimateFloat(DataItem, 'Height', 50, 0.3);
+      TAnimator.AnimateFloat(DataItem, 'Opacity', 1, 0.3);
+    end;
+  except
+    on E: Exception do
+      raise Exception.Create('AddCheckBoxField Hatası: ' + E.Message);
+  end;
+
+
+   // RadioButton kontrolü
+//  RadioBtn := TRadioButton.Create(Layout);
+//  RadioBtn.Align := TAlignLayout.Right;
+//  RadioBtn.Width := 40;
+//  RadioBtn.IsChecked := AValue;
+//  // RadioBtn.StyledSettings := [];
+//  RadioBtn.Text := ''; // RadioButton metnini boş yap
+//  RadioBtn.GroupName := 'RadioGroup' + IntToStr(Random(1000));
+//  // Varsayılan grup adı
+
+  // Unique isim oluştur
+//  RadioBtn.Name := GenerateComponentName(RadioBtn, AFieldName, Random(10000));
+
 end;
 
 function TExpandableListView.AddCheckBoxField(AHeaderInfo: THeaderInfo;
