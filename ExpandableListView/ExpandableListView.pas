@@ -100,9 +100,13 @@ type
       const AFieldName: string;
       ASelectedColor: TAlphaColor = TAlphaColorRec.Blue): TColorComboBox;
     function AddRadioButtonField(AHeaderInfo: THeaderInfo;
-      const AFieldName: string; AValue: Boolean): TRadioButton;
+      const AFieldName: string; AValue: Boolean;
+      const AGroupName: string = 'DefaultRadioGroup'): TRadioButton;
     // Add the declaration here
-
+    function GetSelectedRadioButtonInGroup(const AGroupName: string)
+      : TRadioButton;
+    function GetSelectedRadioButtonLabelInGroup(const AGroupName
+      : string): string;
     // SVG ikonu ayarlamak için
     procedure SetHeaderSVG(AHeaderInfo: THeaderInfo; const ASVGData: string);
 
@@ -275,6 +279,7 @@ var
   ColorValue: TAlphaColor;
   LabelText: string;
   GroupName: string;
+
 begin
   if (HeaderInfo = nil) or (FieldsObj = nil) then
     Exit;
@@ -337,12 +342,16 @@ begin
               FieldName := LabelText;
 
             DebugLog('RadioButton oluşturuluyor: ' + FieldName);
+            // GroupName'i al veya varsayılan değeri kullan
             var
-            RadioBtn := AddRadioButtonField(HeaderInfo, FieldName, BoolValue);
-
-            // GroupName atama
+            RadioGroupName := 'DefaultRadioGroup';
             if GroupName <> '' then
-              RadioBtn.GroupName := GroupName;
+              RadioGroupName := GroupName;
+
+            var
+            RadioBtn := AddRadioButtonField(HeaderInfo, FieldName, BoolValue,
+              RadioGroupName);
+
           end;
         end
         else if UIType = 'TCheckBox' then
@@ -863,6 +872,70 @@ begin
 
   // Bileşen adını oluştur
   Result := LowerCase(BaseName + '_' + TypeName + IntToStr(Index));
+end;
+
+
+function TExpandableListView.GetSelectedRadioButtonInGroup(const AGroupName: string): TRadioButton;
+var
+  i, j: Integer;
+  HeaderInfo: THeaderInfo;
+  ChildItem: TListBoxItem;
+  Component: TComponent;
+begin
+  Result := nil;
+
+  // Tüm başlıkları ve alt öğeleri döngüye alarak kontrol et
+  for i := 0 to FHeaders.Count - 1 do
+  begin
+    HeaderInfo := FHeaders[i];
+
+    for j := 0 to HeaderInfo.ChildItems.Count - 1 do
+    begin
+      ChildItem := HeaderInfo.ChildItems[j];
+
+      // Alt öğe içindeki tüm komponentleri kontrol et
+      for var k := 0 to ChildItem.ComponentCount - 1 do
+      begin
+        Component := ChildItem.Components[k];
+
+        // TLayout içindeki komponentleri kontrol et
+        if Component is TLayout then
+        begin
+          for var m := 0 to TLayout(Component).ComponentCount - 1 do
+          begin
+            var InnerComponent := TLayout(Component).Components[m];
+
+            // RadioButton'u bul ve grup adını kontrol et
+            if InnerComponent is TRadioButton then
+            begin
+              var RadioBtn := TRadioButton(InnerComponent);
+
+              if (RadioBtn.GroupName = AGroupName) and RadioBtn.IsChecked then
+              begin
+                Result := RadioBtn;
+                Exit; // Bulunca çık
+              end;
+            end;
+          end;
+        end;
+      end;
+    end;
+  end;
+
+  // Bulunamazsa nil döndür
+  DebugLog('Grup adı "' + AGroupName + '" için seçili RadioButton bulunamadı.');
+end;
+
+// Seçilen RadioButton'un etiketini almak için yardımcı fonksiyon
+function TExpandableListView.GetSelectedRadioButtonLabelInGroup(const AGroupName: string): string;
+var
+  RadioBtn: TRadioButton;
+begin
+  Result := '';
+  RadioBtn := GetSelectedRadioButtonInGroup(AGroupName);
+
+  if RadioBtn <> nil then
+    Result := FindLabelTextForComponent(RadioBtn);
 end;
 
 procedure TExpandableListView.CreateHeaderSection(AHeaderInfo: THeaderInfo);
@@ -1449,7 +1522,9 @@ begin
 end;
 
 function TExpandableListView.AddRadioButtonField(AHeaderInfo: THeaderInfo;
-const AFieldName: string; AValue: Boolean): TRadioButton;
+const AFieldName: string; AValue: Boolean;
+const AGroupName: string = 'DefaultRadioGroup'): TRadioButton;
+
 var
   DataItem: TListBoxItem;
   Layout: TLayout;
@@ -1527,11 +1602,11 @@ begin
     RadioBtn.Width := 60;
     RadioBtn.StyleLookup := 'radiobuttonstyle';
     RadioBtn.IsChecked := AValue;
-    RadioBtn.Text := ''; // RadioButton metnini boş yap
-    RadioBtn.GroupName := 'RadioGroup'  ;
-   RadioBtn.Name := GenerateComponentName(RadioBtn, AFieldName, Random(10000));
+    RadioBtn.GroupName := 'RadioGroup';
+    RadioBtn.Name := GenerateComponentName(RadioBtn, AFieldName, Random(10000));
 
     Layout.AddObject(RadioBtn);
+    RadioBtn.Text := ''; // RadioButton metnini boş yap
 
     Result := RadioBtn;
 
@@ -1551,18 +1626,18 @@ begin
   end;
 
 
-   // RadioButton kontrolü
-//  RadioBtn := TRadioButton.Create(Layout);
-//  RadioBtn.Align := TAlignLayout.Right;
-//  RadioBtn.Width := 40;
-//  RadioBtn.IsChecked := AValue;
-//  // RadioBtn.StyledSettings := [];
-//  RadioBtn.Text := ''; // RadioButton metnini boş yap
-//  RadioBtn.GroupName := 'RadioGroup' + IntToStr(Random(1000));
-//  // Varsayılan grup adı
+  // RadioButton kontrolü
+  // RadioBtn := TRadioButton.Create(Layout);
+  // RadioBtn.Align := TAlignLayout.Right;
+  // RadioBtn.Width := 40;
+  // RadioBtn.IsChecked := AValue;
+  // // RadioBtn.StyledSettings := [];
+  // RadioBtn.Text := ''; // RadioButton metnini boş yap
+  // RadioBtn.GroupName := 'RadioGroup' + IntToStr(Random(1000));
+  // // Varsayılan grup adı
 
   // Unique isim oluştur
-//  RadioBtn.Name := GenerateComponentName(RadioBtn, AFieldName, Random(10000));
+  // RadioBtn.Name := GenerateComponentName(RadioBtn, AFieldName, Random(10000));
 
 end;
 
@@ -2213,10 +2288,10 @@ begin
     begin
       var
       RadioButton := TRadioButton(Component);
-
-      ValueObj.AddPair('ValueType', TJSONString.Create('Boolean'));
+      ValueObj.AddPair('UIType', 'TRadioButton');
       ValueObj.AddPair('Value', TJSONBool.Create(RadioButton.IsChecked));
-      ValueObj.AddPair('GroupName', TJSONString.Create(RadioButton.GroupName));
+      // GroupName bilgisini de sakla
+      ValueObj.AddPair('GroupName', RadioButton.GroupName);
     end
     else if Component is TListBox then
     begin
