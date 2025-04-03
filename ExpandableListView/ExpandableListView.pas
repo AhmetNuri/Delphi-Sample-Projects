@@ -10,7 +10,7 @@ uses
   FMX.Objects, FMX.Controls.Presentation, FMX.Edit, FMX.NumberBox, FMX.Layouts,
   FMX.StdCtrls, FMX.Ani, FMX.ListBox, System.Generics.Collections, FMX.Colors,
   FMX.Filter.Effects, System.Skia, FMX.Skia, FMX.Text, System.JSON, Math,
-  StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar, FMX.DateTimeCtrls.Types
+  StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar,  FMX.DateTimeCtrls.Types
 
     , System.DateUtils;
 // SVGIcon için eklendi
