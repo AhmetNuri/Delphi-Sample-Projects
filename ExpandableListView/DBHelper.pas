@@ -30,6 +30,9 @@ type
 
     // JSON'dan veritabanına kaydetme fonksiyonu
     function JSONToDatabase(const AJSON: string; const AListViewName: string = ''): Integer;
+     // sadece fieldvaluları aktar
+    function  ExportFieldValuesAsJSON: string;
+
   end;
 
 implementation
@@ -68,6 +71,150 @@ begin
   end;
 end;
 
+function TDBHelper.ExportFieldValuesAsJSON: string;
+var
+  RootObj, HeaderObj, FieldsObj: TJSONObject;
+  HeadersArray: TJSONArray;
+  QueryListViews, QueryHeaders, QueryFields: TFDQuery;
+  ListViewID, HeaderID: Integer;
+begin
+  try
+    // Create main JSON object
+    RootObj := TJSONObject.Create;
+    HeadersArray := TJSONArray.Create;
+
+    // Create query objects
+    QueryListViews := TFDQuery.Create(nil);
+    QueryHeaders := TFDQuery.Create(nil);
+    QueryFields := TFDQuery.Create(nil);
+
+    try
+      // Set connections
+      QueryListViews.Connection := FConnection;
+      QueryHeaders.Connection := FConnection;
+      QueryFields.Connection := FConnection;
+
+      // Get ListView list
+      QueryListViews.SQL.Text := 'SELECT * FROM ListViews';
+      QueryListViews.Open;
+
+      // Process each ListView
+      while not QueryListViews.Eof do
+      begin
+        ListViewID := QueryListViews.FieldByName('ListViewID').AsInteger;
+
+        // Get headers for this ListView
+        QueryHeaders.SQL.Text :=
+          'SELECT * FROM Headers WHERE HeaderListViewID = :ListViewID ORDER BY HeaderOrder';
+        QueryHeaders.ParamByName('ListViewID').AsInteger := ListViewID;
+        QueryHeaders.Open;
+
+        // Process each Header
+        while not QueryHeaders.Eof do
+        begin
+          HeaderID := QueryHeaders.FieldByName('HeaderID').AsInteger;
+          HeaderObj := TJSONObject.Create;
+          FieldsObj := TJSONObject.Create;
+
+          // Add header title
+          HeaderObj.AddPair('Title',
+            TJSONString.Create(QueryHeaders.FieldByName('HeaderTitle').AsString));
+
+          // Get fields for this header
+          QueryFields.SQL.Text :=
+            'SELECT * FROM Fields WHERE FieldHeaderID = :HeaderID ORDER BY FieldOrder';
+          QueryFields.ParamByName('HeaderID').AsInteger := HeaderID;
+          QueryFields.Open;
+
+          // Process each field
+          while not QueryFields.Eof do
+          begin
+            var FieldName := QueryFields.FieldByName('FieldName').AsString;
+            var FieldValue := QueryFields.FieldByName('FieldValue').AsString;
+            var FieldType := QueryFields.FieldByName('FieldType').AsString.ToLower;
+            var FieldDataType := QueryFields.FieldByName('FieldDataType').AsString.ToLower;
+
+            // Create field value based on type
+            var JsonValue: TJSONValue := nil;
+
+            if FieldDataType = 'boolean' then
+            begin
+              // Boolean değerler için
+              JsonValue := TJSONBool.Create(UpperCase(FieldValue) = 'TRUE');
+            end
+            else if FieldDataType = 'integer' then
+            begin
+              // Integer değerler için
+              var IntValue: Integer;
+              if TryStrToInt(FieldValue, IntValue) then
+                JsonValue := TJSONNumber.Create(IntValue)
+              else
+                JsonValue := TJSONNumber.Create(0);
+            end
+            else if FieldDataType = 'float' then
+            begin
+              // Float değerler için
+              var FloatValue: Double;
+              if TryStrToFloat(FieldValue, FloatValue) then
+                JsonValue := TJSONNumber.Create(FloatValue)
+              else
+                JsonValue := TJSONNumber.Create(0.0);
+            end
+            else if FieldType = 'colorbox' then
+            begin
+              // Color değerleri için (hex formatında)
+              if not FieldValue.StartsWith('#') then
+                FieldValue := '#' + FieldValue;
+              JsonValue := TJSONString.Create(FieldValue);
+            end
+            else
+            begin
+              // String ve diğer değerler için
+              JsonValue := TJSONString.Create(FieldValue);
+            end;
+
+            // Add field to Fields object
+            FieldsObj.AddPair(FieldName, JsonValue);
+
+            QueryFields.Next;
+          end;
+
+          // Add Fields object to Header
+          HeaderObj.AddPair('Fields', FieldsObj);
+
+          // Add Header to Headers array
+          HeadersArray.Add(HeaderObj);
+
+          QueryHeaders.Next;
+        end;
+
+        QueryListViews.Next;
+      end;
+
+      // Add Headers array to root object
+      RootObj.AddPair('Headers', HeadersArray);
+
+      // Return JSON string
+      Result := RootObj.ToString;
+
+    finally
+      QueryListViews.Free;
+      QueryHeaders.Free;
+      QueryFields.Free;
+
+    // HeadersArray.Free;
+      RootObj.Free;
+    end;
+
+  except
+    on E: Exception do
+    begin
+      Result := '';
+      raise Exception.Create('ExportFieldValuesAsJSON error: ' + E.Message);
+    end;
+  end;
+end;
+
 function TDBHelper.GetLastInsertRowID: Integer;
 var
   Query: TFDQuery;
@@ -82,6 +229,7 @@ begin
     FreeAndNil(Query);
   end;
 end;
+
 
 function TDBHelper.GetFieldDataType(const AFieldDataType: string): string;
 begin
