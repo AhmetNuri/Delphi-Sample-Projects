@@ -43,9 +43,12 @@ type
     function LoadFromJSONFile(const AFileName: string): Boolean;
     function LoadHeaderFromJSON(const ATitle: string; AJSONObj: TJSONObject)
       : THeaderInfo;
+
     procedure LoadFieldsFromJSON(HeaderInfo: THeaderInfo;
       FieldsObj: TJSONObject);
     function   UpdateValuesFromJSON(const AJSONString: string): Boolean;
+
+    function      UpdateOnlyValuesFromJSON(const AJSONString: string): Boolean;
 
 
     function ExportToJSON: string;
@@ -1178,6 +1181,164 @@ begin
   end;
 end;
 
+
+function TExpandableListViewJSONHelper.UpdateOnlyValuesFromJSON(
+  const AJSONString: string): Boolean;
+var
+  RootObj, HeaderObj, FieldsObj: TJSONObject;
+  HeadersArray: TJSONArray;
+  HeaderInfo: THeaderInfo;
+  i, j: Integer;
+  Component: TComponent;
+  Value: TJSONValue;
+  ListBoxItem: TListBoxItem;
+  Layout: TLayout;
+  HeaderTitle: string;
+begin
+  Result := False;
+  try
+    // JSON nesnesini parse et
+    RootObj := TJSONObject.ParseJSONValue(AJSONString) as TJSONObject;
+    if RootObj = nil then
+    begin
+      DebugLog('[UpdateValuesFromJSON] Geçersiz JSON formatı');
+      Exit;
+    end;
+
+    try
+      // Headers array'ini al
+      if not RootObj.TryGetValue<TJSONArray>('Headers', HeadersArray) then
+      begin
+        DebugLog('[UpdateValuesFromJSON] Headers array bulunamadı');
+        Exit;
+      end;
+
+      // Her başlık için döngü
+      for i := 0 to HeadersArray.Count - 1 do
+      begin
+        HeaderObj := HeadersArray.Items[i] as TJSONObject;
+
+        // Başlık adını al
+        if not HeaderObj.TryGetValue('Title', HeaderTitle) then Continue;
+
+        // Mevcut HeaderInfo'yu bul
+        HeaderInfo := nil;
+        for j := 0 to FExpandableListView.FHeaders.Count - 1 do
+        begin
+          if FExpandableListView.FHeaders[j].Title = HeaderTitle then
+          begin
+            HeaderInfo := FExpandableListView.FHeaders[j];
+            Break;
+          end;
+        end;
+
+        if HeaderInfo = nil then Continue;
+
+        // Fields nesnesini al
+        if not HeaderObj.TryGetValue<TJSONObject>('Fields', FieldsObj) then Continue;
+
+        // Her ListBoxItem için döngü
+        for j := 0 to HeaderInfo.ChildItems.Count - 1 do
+        begin
+          ListBoxItem := TListBoxItem(HeaderInfo.ChildItems[j]);
+
+          // Layout'u bul
+          Layout := nil;
+          for var k := 0 to ListBoxItem.ComponentCount - 1 do
+          begin
+            if ListBoxItem.Components[k] is TLayout then
+            begin
+              Layout := TLayout(ListBoxItem.Components[k]);
+              Break;
+            end;
+          end;
+
+          if Layout = nil then Continue;
+
+          // Layout içindeki her bileşen için
+          for var k := 0 to Layout.ComponentCount - 1 do
+          begin
+            Component := Layout.Components[k];
+
+            // Etiket metnini bul
+            var LabelText := FindLabelTextForComponent(Component);
+            if LabelText = '' then Continue;
+
+            // JSON'dan değeri al
+            Value := FieldsObj.Values[LabelText];
+            if Value = nil then Continue;
+
+            try
+              // Bileşen tipine göre değeri güncelle
+              if Component is TEdit then
+                TEdit(Component).Text := Value.Value
+              else if Component is TMemo then
+                TMemo(Component).Text := Value.Value
+              else if Component is TNumberBox then
+              begin
+                var NumBox := TNumberBox(Component);
+                if Value is TJSONNumber then
+                  NumBox.Value := (Value as TJSONNumber).AsDouble;
+              end
+              else if Component is TCheckBox then
+              begin
+                if Value is TJSONBool then
+                  TCheckBox(Component).IsChecked := (Value as TJSONBool).AsBoolean;
+              end
+              else if Component is TSwitch then
+              begin
+                if Value is TJSONBool then
+                  TSwitch(Component).IsChecked := (Value as TJSONBool).AsBoolean;
+              end
+              else if Component is TComboBox then
+              begin
+                var ComboBox := TComboBox(Component);
+                var StrValue := Value.Value;
+                var ItemIndex := ComboBox.Items.IndexOf(StrValue);
+                if ItemIndex >= 0 then
+                  ComboBox.ItemIndex := ItemIndex;
+              end
+              else if Component is TColorComboBox then
+              begin
+                if Value.Value.StartsWith('#') then
+                  TColorComboBox(Component).Color := HexToTAlphaColor(Value.Value);
+              end
+              else if Component is TColorBox then
+              begin
+                if Value.Value.StartsWith('#') then
+                  TColorBox(Component).Color := HexToTAlphaColor(Value.Value);
+              end
+              else if Component is TRadioButton then
+              begin
+                if Value is TJSONBool then
+                  TRadioButton(Component).IsChecked := (Value as TJSONBool).AsBoolean;
+              end
+              else if Component is TTrackBar then
+              begin
+                if Value is TJSONNumber then
+                  TTrackBar(Component).Value := (Value as TJSONNumber).AsDouble;
+              end;
+            except
+              on E: Exception do
+                DebugLog(Format('[UpdateValuesFromJSON] Değer güncelleme hatası - %s: %s',
+                  [LabelText, E.Message]));
+            end;
+          end;
+        end;
+      end;
+
+      Result := True;
+    finally
+      FreeAndNil(RootObj);
+    end;
+  except
+    on E: Exception do
+    begin
+      DebugLog('[UpdateValuesFromJSON] Genel hata: ' + E.Message);
+      Result := False;
+    end;
+  end;
+end;
 
 function TExpandableListViewJSONHelper.UpdateValuesFromJSON(const AJSONString: string): Boolean;
 var
