@@ -1,4 +1,4 @@
- unit DBHelper;
+  unit DBHelper;
 
 interface
 
@@ -275,7 +275,7 @@ begin
               while not QueryComboItems.Eof do
               begin
                 var ItemValue := QueryComboItems.FieldByName('ComboBoxItemValue').AsString;
-                ItemsArray.Add(TJSONString.Create(ItemValue).ToString);
+                 ItemsArray.AddElement(TJSONString.Create(ItemValue)) ;
 
                 if QueryComboItems.RecNo = 1 then
                   FirstItemValue := ItemValue;
