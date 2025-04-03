@@ -1,4 +1,4 @@
- unit ExpandableListViewJSON;
+  unit ExpandableListViewJSON;
 
 interface
 
@@ -45,8 +45,11 @@ type
       : THeaderInfo;
     procedure LoadFieldsFromJSON(HeaderInfo: THeaderInfo;
       FieldsObj: TJSONObject);
+    function   UpdateValuesFromJSON(const AJSONString: string): Boolean;
+
 
     function ExportToJSON: string;
+    function ExportValuesToJSON: string;
 
     // Belirtilen başlık için JSON çıktısı üreten fonksiyon
     function ExportHeaderToJSON(AHeaderInfo: THeaderInfo): TJSONObject;
@@ -394,6 +397,104 @@ end;
 function TExpandableListViewJSONHelper.ExportToJSON: string;
 begin
 
+end;
+
+function TExpandableListViewJSONHelper.ExportValuesToJSON: string;
+var
+  RootObj, HeaderObj, FieldsObj: TJSONObject;
+  HeadersArray: TJSONArray;
+  i, j: Integer;
+  HeaderInfo: THeaderInfo;
+  Component: TComponent;
+  Value: string;
+  JsonString: string;
+begin
+  try
+    RootObj := TJSONObject.Create;
+    HeadersArray := TJSONArray.Create;
+
+    try
+      // Her başlık için döngü
+      for i := 0 to FExpandableListView.FHeaders.Count - 1 do
+      begin
+        HeaderInfo := FExpandableListView.FHeaders[i];
+        HeaderObj := TJSONObject.Create;
+        FieldsObj := TJSONObject.Create;
+
+        // Başlık bilgilerini ekle
+        HeaderObj.AddPair('Title', HeaderInfo.Title);
+
+        // Her başlığın alt öğelerini kontrol et
+        for j := 0 to HeaderInfo.ChildItems.Count - 1 do
+        begin
+          if not(HeaderInfo.ChildItems[j] is TListBoxItem) then
+            Continue;
+
+          // ListBoxItem içindeki bileşenleri kontrol et
+          for var k := 0 to HeaderInfo.ChildItems[j].ComponentCount - 1 do
+          begin
+            Component := HeaderInfo.ChildItems[j].Components[k];
+
+            // Sadece değer içeren bileşenleri işle
+            if Component is TEdit then
+              Value := TEdit(Component).Text
+            else if Component is TNumberBox then
+              Value := FloatToStr(TNumberBox(Component).Value)
+            else if Component is TCheckBox then
+              Value := BoolToStr(TCheckBox(Component).IsChecked, True)
+            else if Component is TSwitch then
+              Value := BoolToStr(TSwitch(Component).IsChecked, True)
+            else if Component is TComboBox then
+            begin
+              if TComboBox(Component).ItemIndex >= 0 then
+                Value := TComboBox(Component).Items[TComboBox(Component).ItemIndex]
+              else
+                Value := '';
+            end
+            else if Component is TColorComboBox then
+              Value := ColorToString(TColorComboBox(Component).Color)
+            else if Component is TColorBox then
+              Value := ColorToString(TColorBox(Component).Color)
+            else if Component is TMemo then
+              Value := TMemo(Component).Text
+            else if Component is TRadioButton then
+              Value := BoolToStr(TRadioButton(Component).IsChecked, True)
+            else if Component is TTrackBar then
+              Value := FloatToStr(TTrackBar(Component).Value)
+            else
+              Continue;
+
+            // Bileşen için etiket metnini bul
+            var LabelText := FindLabelTextForComponent(Component);
+            if LabelText <> '' then
+              FieldsObj.AddPair(LabelText, Value);
+          end;
+        end;
+
+        // Fields nesnesini Header'a ekle
+        HeaderObj.AddPair('Fields', FieldsObj);
+        // Header'ı Headers array'ine ekle
+        HeadersArray.AddElement(HeaderObj);
+      end;
+
+      // Headers array'ini ana nesneye ekle
+      RootObj.AddPair('Headers', HeadersArray);
+
+      // JSON formatına dönüştür (düzeltilmiş kısım)
+      JsonString := RootObj.ToJSON;
+      Result := JsonString;
+
+    finally
+      FreeAndNil(RootObj);
+    end;
+
+  except
+    on E: Exception do
+    begin
+      Result := '';
+      DebugLog('ExportValuesToJSON Hatası: ' + E.Message);
+    end;
+  end;
 end;
 
 function TExpandableListViewJSONHelper.FindLabelTextForComponent
@@ -1077,5 +1178,144 @@ begin
   end;
 end;
 
+
+function TExpandableListViewJSONHelper.UpdateValuesFromJSON(const AJSONString: string): Boolean;
+var
+  RootObj: TJSONObject;
+  HeadersArray: TJSONArray;
+  HeaderObj, FieldsObj: TJSONObject;
+  HeaderInfo: THeaderInfo;
+  HeaderTitle: string;
+  Component: TComponent;
+  i, j, k: Integer;
+  FieldName, FieldValue: string;
+  FieldPair: TJSONPair;
+begin
+  Result := False;
+  try
+    // JSON string'i parse et
+    RootObj := TJSONObject.ParseJSONValue(AJSONString) as TJSONObject;
+    if not Assigned(RootObj) then
+      Exit;
+
+    try
+      // Headers array'ini al
+      if not RootObj.TryGetValue<TJSONArray>('Headers', HeadersArray) then
+        Exit;
+
+      // Her başlık için döngü
+      for i := 0 to HeadersArray.Count - 1 do
+      begin
+        HeaderObj := HeadersArray.Items[i] as TJSONObject;
+
+        // Başlık adını al
+        if not HeaderObj.TryGetValue('Title', HeaderTitle) then
+          Continue;
+
+        // Bu başlığı ExpandableListView'da bul
+        HeaderInfo := nil;
+        for j := 0 to FExpandableListView.FHeaders.Count - 1 do
+        begin
+          if FExpandableListView.FHeaders[j].Title = HeaderTitle then
+          begin
+            HeaderInfo := FExpandableListView.FHeaders[j];
+            Break;
+          end;
+        end;
+
+        // Başlık bulunamadıysa sonraki başlığa geç
+        if not Assigned(HeaderInfo) then
+          Continue;
+
+        // Fields nesnesini al
+        if not HeaderObj.TryGetValue<TJSONObject>('Fields', FieldsObj) then
+          Continue;
+
+        // Her alan için döngü
+        for j := 0 to FieldsObj.Count - 1 do
+        begin
+          FieldPair := FieldsObj.Pairs[j];
+          FieldName := FieldPair.JsonString.Value;
+          FieldValue := FieldPair.JsonValue.Value;
+
+          // Header'ın alt öğelerini kontrol et
+          for k := 0 to HeaderInfo.ChildItems.Count - 1 do
+          begin
+            if not(HeaderInfo.ChildItems[k] is TListBoxItem) then
+              Continue;
+
+            // ListBoxItem içindeki bileşenleri kontrol et
+            for var m := 0 to HeaderInfo.ChildItems[k].ComponentCount - 1 do
+            begin
+              Component := HeaderInfo.ChildItems[k].Components[m];
+
+              // Bileşenin etiketini kontrol et
+              if FindLabelTextForComponent(Component) <> FieldName then
+                Continue;
+
+              // Bileşen tipine göre değeri güncelle
+              try
+                if Component is TEdit then
+                  TEdit(Component).Text := FieldValue
+                else if Component is TNumberBox then
+                begin
+                  var Value: Double;
+                  if TryStrToFloat(FieldValue, Value) then
+                    TNumberBox(Component).Value := Value;
+                end
+                else if Component is TCheckBox then
+                  TCheckBox(Component).IsChecked := StrToBool(FieldValue)
+                else if Component is TSwitch then
+                  TSwitch(Component).IsChecked := StrToBool(FieldValue)
+                else if Component is TComboBox then
+                begin
+                  var ComboBox := TComboBox(Component);
+                  var ItemIndex := ComboBox.Items.IndexOf(FieldValue);
+                  if ItemIndex >= 0 then
+                    ComboBox.ItemIndex := ItemIndex;
+                end
+                else if Component is TColorComboBox then
+                begin
+                  if FieldValue.StartsWith('#') then
+                    TColorComboBox(Component).Color := HexToTAlphaColor(FieldValue);
+                end
+                else if Component is TColorBox then
+                begin
+                  if FieldValue.StartsWith('#') then
+                    TColorBox(Component).Color := HexToTAlphaColor(FieldValue);
+                end
+                else if Component is TMemo then
+                  TMemo(Component).Text := FieldValue
+                else if Component is TRadioButton then
+                  TRadioButton(Component).IsChecked := StrToBool(FieldValue)
+                else if Component is TTrackBar then
+                begin
+                  var Value: Double;
+                  if TryStrToFloat(FieldValue, Value) then
+                    TTrackBar(Component).Value := Value;
+                end;
+              except
+                on E: Exception do
+                  DebugLog(Format('Değer güncelleme hatası - Alan: %s, Değer: %s, Hata: %s',
+                    [FieldName, FieldValue, E.Message]));
+              end;
+            end;
+          end;
+        end;
+      end;
+
+      Result := True;
+    finally
+      FreeAndNil(RootObj);
+    end;
+
+  except
+    on E: Exception do
+    begin
+      DebugLog('UpdateValuesFromJSON Hatası: ' + E.Message);
+      Result := False;
+    end;
+  end;
+end;
 
 end.
