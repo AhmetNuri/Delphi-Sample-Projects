@@ -7,13 +7,13 @@ uses
   FireDAC.Stan.Async, FireDAC.DApt, FireDAC.Stan.Def, FireDAC.Stan.Pool,
   FireDAC.UI.Intf, FireDAC.Stan.Intf, FireDAC.Stan.Error, FireDAC.Phys.Intf,
   FireDAC.Phys, FireDAC.Phys.SQLite, FireDAC.Phys.SQLiteDef, FireDAC.Stan.ExprFuncs,
-  FireDAC.Phys.SQLiteWrapper.Stat, Data.DB;
+  FireDAC.Phys.SQLiteWrapper.Stat, Data.DB, ExpandableListViewJSON;
 
 type
   TDBHelper = class
   private
     FConnection: TFDConnection;
-
+    FExpandableListViewJSONHelper : TExpandableListViewJSONHelper;
     // Yardımcı fonksiyonlar
     function GetLastInsertRowID: Integer;
     function EscapeString(const AValue: string): string;
@@ -22,7 +22,7 @@ type
     function GetFieldType(const AFieldType: string): string;
 
   public
-    constructor Create(AConnection: TFDConnection);
+    constructor Create(AConnection: TFDConnection );
     destructor Destroy; override;
 
     // Veritabanından JSON oluşturma fonksiyonu
@@ -36,7 +36,7 @@ implementation
 
 { TDBHelper }
 
-constructor TDBHelper.Create(AConnection: TFDConnection);
+constructor TDBHelper.Create(AConnection: TFDConnection  );
 begin
   inherited Create;
   FConnection := AConnection;
