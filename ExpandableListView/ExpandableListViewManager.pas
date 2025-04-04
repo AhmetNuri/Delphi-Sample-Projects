@@ -1,4 +1,4 @@
-unit ExpandableListViewManager;
+ unit ExpandableListViewManager;
 
 interface
 
@@ -8,11 +8,10 @@ uses
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.UI.Intf, FireDAC.Stan.Intf,
   FireDAC.Stan.Error, FireDAC.Phys.Intf, FireDAC.Phys, FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,
-  ExpandableListView, DBHelper,  System.UITypes ,ExpandableListViewJSON ,
-FMX.Text,   Math,FMX.Edit,    FMX.NumberBox, FMX.Layouts,
+  ExpandableListView, DBHelper, System.UITypes, ExpandableListViewJSON,
+  FMX.Text, Math, FMX.Edit, FMX.NumberBox, FMX.Layouts,
   FMX.StdCtrls, FMX.Ani, FMX.ListBox, System.Generics.Collections, FMX.Colors,
-  StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar
-  ;
+  StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar;
 
 type
   TExpandableListViewManager = class
@@ -20,7 +19,7 @@ type
     FExpandableListView: TExpandableListView;
     FDBHelper: TDBHelper;
     FJSONHelper: TExpandableListViewJSONHelper;
-    FConnection: TFDConnection;
+
     FLogEnabled: Boolean;
     FLogPath: string;
 
@@ -28,6 +27,7 @@ type
     procedure SetupLogOptions;
 
   public
+   FConnection: TFDConnection;
     constructor Create(AOwner: TComponent);
     destructor Destroy; override;
 
@@ -35,6 +35,9 @@ type
     function SaveListViewToDatabase(const AListViewName: string = ''): Boolean;
     function LoadListViewFromDatabase(const AListViewName: string = ''): Boolean;
     function ExportToJSON: string;
+
+    function LoadValuesFromDatabase: Boolean;
+     function  SaveValuesToDB: Boolean;
 
     // JSON işlemleri
     function LoadFromJSON(const AJSON: string): Boolean;
@@ -181,6 +184,31 @@ begin
   end;
 end;
 
+
+function TExpandableListViewManager.LoadValuesFromDatabase: Boolean;
+var
+  JSONData: string;
+begin
+  Result := False;
+  try
+    // Veritabanından sadece fieldvalue değerlerini al
+    JSONData := FDBHelper.ExportFieldValuesAsJSON;
+
+    if not JSONData.IsEmpty then
+    begin
+      // JSON verilerini ListView'e aktar
+      Result := FJSONHelper.UpdateOnlyValuesFromJSON(JSONData);
+    end;
+  except
+    on E: Exception do
+      raise Exception.Create('Değerleri yükleme hatası: ' + E.Message);
+  end;
+end;
+
+
+
+
+
 // JSON işlemleri
 function TExpandableListViewManager.ExportToJSON: string;
 begin
@@ -214,6 +242,29 @@ begin
     end;
   except
     // Hata durumunda False döner
+  end;
+end;
+
+
+
+
+function TExpandableListViewManager.SaveValuesToDB: Boolean;
+var
+  JSONData: string;
+begin
+  Result := False;
+  try
+    // ListView'den sadece değerleri al
+    JSONData := FJSONHelper.ExportValuesToJSON;
+
+    if not JSONData.IsEmpty then
+    begin
+      // Değerleri veritabanında güncelle
+      Result := FDBHelper.ImportFieldValuesFromJSON(JSONData);
+    end;
+  except
+    on E: Exception do
+      raise Exception.Create('Değerleri kaydetme hatası: ' + E.Message);
   end;
 end;
 
