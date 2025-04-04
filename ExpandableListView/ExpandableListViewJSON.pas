@@ -398,26 +398,60 @@ end;
 
 
 function TExpandableListViewJSONHelper.ExportToJSON: string;
+var
+  RootObj: TJSONObject;
+  HeadersArray: TJSONArray;
+  HeaderObj: TJSONObject;
+  i: Integer;
 begin
+  Result := '';
+  RootObj := TJSONObject.Create;
+  HeadersArray := TJSONArray.Create;
 
+  try
+    // Her bir başlık için JSON nesnesi oluştur
+    for i := 0 to FExpandableListView.FHeaders.Count - 1 do
+    begin
+      HeaderObj := ExportHeaderToJSON(FExpandableListView.FHeaders[i]);
+      HeadersArray.Add(HeaderObj);
+    end;
+
+    // Headers array'ini root objeye ekle
+    RootObj.AddPair('Headers', HeadersArray);
+
+    // JSON string'ini oluştur
+    Result := RootObj.ToString;
+  finally
+  //  HeadersArray.Free;
+   FreeAndNil(RootObj) ;
+  end;
 end;
 
 function TExpandableListViewJSONHelper.ExportValuesToJSON: string;
 var
   RootObj, HeaderObj, FieldsObj: TJSONObject;
   HeadersArray: TJSONArray;
-  i, j: Integer;
+  i, j, k: Integer;
   HeaderInfo: THeaderInfo;
+  ChildItem: TListBoxItem;
   Component: TComponent;
-  Value: string;
-  JsonString: string;
+  FieldName, FieldValue: string;
+  Layout: TLayout;
 begin
   try
+    // Ana JSON nesnelerini oluştur
     RootObj := TJSONObject.Create;
     HeadersArray := TJSONArray.Create;
 
+    // Metadata ekle
+    var MetadataObj := TJSONObject.Create;
+    MetadataObj.AddPair('CreatedAt', TJSONString.Create(FormatDateTime('yyyy-mm-dd hh:nn:ss', Now)));
+    MetadataObj.AddPair('CreatedBy', TJSONString.Create('AhmetNuri'));
+    MetadataObj.AddPair('Version', TJSONString.Create('1.0'));
+    RootObj.AddPair('Metadata', MetadataObj);
+
     try
-      // Her başlık için döngü
+      // Her başlık için işlem yap
       for i := 0 to FExpandableListView.FHeaders.Count - 1 do
       begin
         HeaderInfo := FExpandableListView.FHeaders[i];
@@ -425,77 +459,186 @@ begin
         FieldsObj := TJSONObject.Create;
 
         // Başlık bilgilerini ekle
-        HeaderObj.AddPair('Title', HeaderInfo.Title);
+        HeaderObj.AddPair('Title', TJSONString.Create(HeaderInfo.Title));
+        HeaderObj.AddPair('HeaderIndex', TJSONNumber.Create(HeaderInfo.ImageIndex));
+        HeaderObj.AddPair('HeaderColor', TJSONString.Create(ColorToString(HeaderInfo.Color)));
 
-        // Her başlığın alt öğelerini kontrol et
+        // SVG verisi varsa ekle
+        if HeaderInfo.SVGData <> '' then
+          HeaderObj.AddPair('SVGData', TJSONString.Create(HeaderInfo.SVGData));
+
+        // Alt öğelerin kontrollerini dolaş
         for j := 0 to HeaderInfo.ChildItems.Count - 1 do
         begin
-          if not(HeaderInfo.ChildItems[j] is TListBoxItem) then
-            Continue;
+          ChildItem := HeaderInfo.ChildItems[j];
 
-          // ListBoxItem içindeki bileşenleri kontrol et
-          for var k := 0 to HeaderInfo.ChildItems[j].ComponentCount - 1 do
+          // Önce Layout'ları ara
+          for k := 0 to ChildItem.ComponentCount - 1 do
           begin
-            Component := HeaderInfo.ChildItems[j].Components[k];
-
-            // Sadece değer içeren bileşenleri işle
-            if Component is TEdit then
-              Value := TEdit(Component).Text
-            else if Component is TNumberBox then
-              Value := FloatToStr(TNumberBox(Component).Value)
-            else if Component is TCheckBox then
-              Value := BoolToStr(TCheckBox(Component).IsChecked, True)
-            else if Component is TSwitch then
-              Value := BoolToStr(TSwitch(Component).IsChecked, True)
-            else if Component is TComboBox then
+            if ChildItem.Components[k] is TLayout then
             begin
-              if TComboBox(Component).ItemIndex >= 0 then
-                Value := TComboBox(Component).Items[TComboBox(Component).ItemIndex]
-              else
-                Value := '';
-            end
-            else if Component is TColorComboBox then
-              Value := ColorToString(TColorComboBox(Component).Color)
-            else if Component is TColorBox then
-              Value := ColorToString(TColorBox(Component).Color)
-            else if Component is TMemo then
-              Value := TMemo(Component).Text
-            else if Component is TRadioButton then
-              Value := BoolToStr(TRadioButton(Component).IsChecked, True)
-            else if Component is TTrackBar then
-              Value := FloatToStr(TTrackBar(Component).Value)
-            else
-              Continue;
+              Layout := TLayout(ChildItem.Components[k]);
 
-            // Bileşen için etiket metnini bul
-            var LabelText := FindLabelTextForComponent(Component);
-            if LabelText <> '' then
-              FieldsObj.AddPair(LabelText, Value);
+              // Layout içindeki her bir kontrol için
+              for var l := 0 to Layout.ComponentCount - 1 do
+              begin
+                Component := Layout.Components[l];
+
+                // Değer içeren kontrolleri işle
+                if IsValidComponent(Component) then
+                begin
+                  // Kontrol için etiket adını bul
+                  FieldName := FindLabelTextForComponent(Component);
+
+                  if FieldName <> '' then
+                  begin
+                    // Kontrol tipine göre değeri al
+                    if Component is TEdit then
+                      FieldValue := TEdit(Component).Text
+                    else if Component is TNumberBox then
+                      FieldValue := FloatToStr(TNumberBox(Component).Value)
+                    else if Component is TCheckBox then
+                      FieldValue := BoolToStr(TCheckBox(Component).IsChecked, True)
+                    else if Component is TSwitch then
+                      FieldValue := BoolToStr(TSwitch(Component).IsChecked, True)
+                    else if Component is TComboBox then
+                    begin
+                      var ComboBox := TComboBox(Component);
+                      if ComboBox.ItemIndex >= 0 then
+                        FieldValue := ComboBox.Items[ComboBox.ItemIndex]
+                      else
+                        FieldValue := '';
+                    end
+                    else if Component is TColorComboBox then
+                      FieldValue := ColorToString(TColorComboBox(Component).Color)
+                    else if Component is TRadioButton then
+                    begin
+                      var RadioBtn := TRadioButton(Component);
+                      FieldValue := BoolToStr(RadioBtn.IsChecked, True);
+
+                      // Her bir alan için ayrı bir JSON nesnesi oluştur
+                      var FieldObj := TJSONObject.Create;
+
+                      if RadioBtn.IsChecked then
+                      begin
+                        FieldObj.AddPair('UIType', TJSONString.Create('TRadioButton'));
+                        FieldObj.AddPair('Value', TJSONBool.Create(True));
+                        FieldObj.AddPair('GroupName', TJSONString.Create(RadioBtn.GroupName));
+                        FieldObj.AddPair('labelText', TJSONString.Create(FieldName));
+                        FieldObj.AddPair('ValueType', TJSONString.Create('Boolean'));
+
+                        // Alan nesnesini Fields nesnesine ekle
+                        FieldsObj.AddPair(FieldName, FieldObj);
+                      end;
+
+                      // RadioButton için özel işlem yaptıysak, döngünün geri kalanını atla
+                      continue;
+                    end
+                    else
+                      continue; // Desteklenmeyen kontrol tiplerini atla
+
+                    // Her bir alan için ayrı bir JSON nesnesi oluştur
+                    var FieldObj := TJSONObject.Create;
+
+                    // Kontrol tipine göre UIType ve ValueType ayarla
+                    if Component is TEdit then
+                    begin
+                      FieldObj.AddPair('UIType', TJSONString.Create('TEdit'));
+                      FieldObj.AddPair('ValueType', TJSONString.Create('String'));
+                      FieldObj.AddPair('Value', TJSONString.Create(FieldValue));
+                    end
+                    else if Component is TNumberBox then
+                    begin
+                      var NumBox := TNumberBox(Component);
+                      FieldObj.AddPair('UIType', TJSONString.Create('TNumberBox'));
+
+                      if NumBox.ValueType = TNumValueType.Integer then
+                      begin
+                        FieldObj.AddPair('ValueType', TJSONString.Create('Integer'));
+                        FieldObj.AddPair('Value', TJSONNumber.Create(Round(NumBox.Value)));
+                      end
+                      else
+                      begin
+                        FieldObj.AddPair('ValueType', TJSONString.Create('Float'));
+                        FieldObj.AddPair('Value', TJSONNumber.Create(NumBox.Value));
+                      end;
+
+                      FieldObj.AddPair('Min', TJSONNumber.Create(NumBox.Min));
+                      FieldObj.AddPair('Max', TJSONNumber.Create(NumBox.Max));
+                      FieldObj.AddPair('DecimalDigits', TJSONNumber.Create(NumBox.DecimalDigits));
+                      FieldObj.AddPair('VertIncrement', TJSONBool.Create(NumBox.VertIncrementEnabled));
+                    end
+                    else if Component is TCheckBox then
+                    begin
+                      FieldObj.AddPair('UIType', TJSONString.Create('TCheckBox'));
+                      FieldObj.AddPair('ValueType', TJSONString.Create('Boolean'));
+                      FieldObj.AddPair('Value', TJSONBool.Create(TCheckBox(Component).IsChecked));
+                    end
+                    else if Component is TSwitch then
+                    begin
+                      FieldObj.AddPair('UIType', TJSONString.Create('TSwitch'));
+                      FieldObj.AddPair('ValueType', TJSONString.Create('Boolean'));
+                      FieldObj.AddPair('Value', TJSONBool.Create(TSwitch(Component).IsChecked));
+                    end
+                    else if Component is TComboBox then
+                    begin
+                      var ComboBox := TComboBox(Component);
+                      var ItemsArray := TJSONArray.Create;
+
+                      // ComboBox öğelerini ekle
+                      for var m := 0 to ComboBox.Items.Count - 1 do
+                        ItemsArray.AddElement(TJSONString.Create(ComboBox.Items[m]));
+
+                      FieldObj.AddPair('UIType', TJSONString.Create('TComboBox'));
+                      FieldObj.AddPair('ValueType', TJSONString.Create('ComboBox'));
+                      FieldObj.AddPair('Items', ItemsArray);
+                      FieldObj.AddPair('SelectedIndex', TJSONNumber.Create(ComboBox.ItemIndex));
+
+                      if ComboBox.ItemIndex >= 0 then
+                        FieldObj.AddPair('Value', TJSONString.Create(ComboBox.Items[ComboBox.ItemIndex]))
+                      else
+                        FieldObj.AddPair('Value', TJSONString.Create(''));
+                    end
+                    else if Component is TColorComboBox then
+                    begin
+                      FieldObj.AddPair('UIType', TJSONString.Create('TColorComboBox'));
+                      FieldObj.AddPair('ValueType', TJSONString.Create('Color'));
+                      FieldObj.AddPair('Value', TJSONString.Create(ColorToString(TColorComboBox(Component).Color)));
+                    end;
+
+                    // Etiket metnini ekle
+                    FieldObj.AddPair('labelText', TJSONString.Create(FieldName));
+
+                    // Alan nesnesini Fields nesnesine ekle
+                    FieldsObj.AddPair(FieldName, FieldObj);
+                  end;
+                end;
+              end;
+            end;
           end;
         end;
 
         // Fields nesnesini Header'a ekle
         HeaderObj.AddPair('Fields', FieldsObj);
-        // Header'ı Headers array'ine ekle
-        HeadersArray.AddElement(HeaderObj);
+
+        // Header'ı Headers dizisine ekle
+        HeadersArray.Add(HeaderObj);
       end;
 
-      // Headers array'ini ana nesneye ekle
+      // Headers dizisini ana nesneye ekle
       RootObj.AddPair('Headers', HeadersArray);
 
-      // JSON formatına dönüştür (düzeltilmiş kısım)
-      JsonString := RootObj.ToJSON;
-      Result := JsonString;
-
+      // JSON çıktısını döndür
+      Result := RootObj.ToString;
     finally
-      FreeAndNil(RootObj);
+      // Sadece RootObj'yi serbest bırak, alt nesneler otomatik olarak serbest bırakılır
+      FreeAndNil(RootObj) ;
     end;
-
   except
     on E: Exception do
     begin
       Result := '';
-      DebugLog('ExportValuesToJSON Hatası: ' + E.Message);
+      DebugLog('ExportValuesToJSON Error: ' + E.Message);
     end;
   end;
 end;
