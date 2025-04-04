@@ -1,0 +1,379 @@
+object frmTestExpandableListView: TfrmTestExpandableListView
+  Left = 0
+  Top = 0
+  Caption = 'ExpandableListView Test Application'
+  ClientHeight = 700
+  ClientWidth = 1219
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  DesignerMasterStyle = 0
+  object lytMain: TLayout
+    Align = Client
+    Size.Width = 968.000000000000000000
+    Size.Height = 700.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    object Rectangle1: TRectangle
+      Align = Client
+      Fill.Color = xFFF0F0F0
+      Size.Width = 968.000000000000000000
+      Size.Height = 700.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      object pnlHeader: TRectangle
+        Align = Top
+        Fill.Color = xFF2196F3
+        Size.Width = 968.000000000000000000
+        Size.Height = 50.000000000000000000
+        Size.PlatformDefault = False
+        Stroke.Kind = None
+        object lblTitle: TLabel
+          Align = Client
+          StyledSettings = [Family, Style]
+          Size.Width = 890.000000000000000000
+          Size.Height = 50.000000000000000000
+          Size.PlatformDefault = False
+          TextSettings.Font.Size = 20.000000000000000000
+          TextSettings.FontColor = claWhite
+          TextSettings.HorzAlign = Center
+          Text = 'ExpandableListView Test Application'
+          TabOrder = 0
+        end
+        object lblVersion: TLabel
+          Align = Right
+          StyledSettings = [Family]
+          Margins.Right = 10.000000000000000000
+          Position.X = 890.000000000000000000
+          Size.Width = 68.000000000000000000
+          Size.Height = 50.000000000000000000
+          Size.PlatformDefault = False
+          TextSettings.Font.Size = 10.000000000000000000
+          TextSettings.Font.StyleExt = {00070000000000000004000000}
+          TextSettings.FontColor = claWhite
+          TextSettings.HorzAlign = Trailing
+          Text = 'v1.0'
+          TabOrder = 1
+        end
+      end
+      object tabcMain: TTabControl
+        Align = Client
+        Size.Width = 968.000000000000000000
+        Size.Height = 650.000000000000000000
+        Size.PlatformDefault = False
+        TabIndex = 0
+        TabOrder = 1
+        TabPosition = PlatformDefault
+        Sizes = (
+          968s
+          624s
+          968s
+          624s)
+        object tabDatabase: TTabItem
+          CustomIcon = <
+            item
+            end>
+          TextSettings.Trimming = None
+          IsSelected = True
+          Size.Width = 70.000000000000000000
+          Size.Height = 26.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Database'
+          ExplicitSize.cx = 75.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object pnlDBSettings: TRectangle
+            Align = Top
+            Fill.Color = claWhite
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Position.X = 10.000000000000000000
+            Position.Y = 10.000000000000000000
+            Size.Width = 948.000000000000000000
+            Size.Height = 80.000000000000000000
+            Size.PlatformDefault = False
+            Stroke.Color = xFFD0D0D0
+            XRadius = 4.000000000000000000
+            YRadius = 4.000000000000000000
+            object edtDatabaseLocation: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Anchors = [akLeft, akTop, akRight]
+              TabOrder = 0
+              Position.X = 16.000000000000000000
+              Position.Y = 36.000000000000000000
+              Size.Width = 830.000000000000000000
+              Size.Height = 28.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object lblDatabaseLocation: TLabel
+              Position.X = 16.000000000000000000
+              Position.Y = 12.000000000000000000
+              Size.Width = 193.000000000000000000
+              Size.Height = 17.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Database Location:'
+              TabOrder = 1
+            end
+            object btnBrowseDB: TButton
+              Anchors = [akTop, akRight]
+              Position.X = 854.000000000000000000
+              Position.Y = 36.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 28.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 2
+              Text = 'Browse...'
+              TextSettings.Trimming = None
+              OnClick = btnBrowseDBClick
+            end
+          end
+          object pnlDatabaseOps: TRectangle
+            Align = Top
+            Fill.Color = claWhite
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Position.X = 10.000000000000000000
+            Position.Y = 100.000000000000000000
+            Size.Width = 948.000000000000000000
+            Size.Height = 120.000000000000000000
+            Size.PlatformDefault = False
+            Stroke.Color = xFFD0D0D0
+            XRadius = 4.000000000000000000
+            YRadius = 4.000000000000000000
+            object btnSaveListViewToDB: TButton
+              Position.X = 16.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 210.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Save ListView To Database'
+              TextSettings.Trimming = None
+              OnClick = btnSaveListViewToDBClick
+            end
+            object btnLoadListViewFromDB: TButton
+              Position.X = 242.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 210.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'Load ListView From Database'
+              TextSettings.Trimming = None
+              OnClick = btnLoadListViewFromDBClick
+            end
+            object edtListViewName: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              TabOrder = 2
+              Position.X = 128.000000000000000000
+              Position.Y = 14.000000000000000000
+              Size.Width = 282.000000000000000000
+              Size.Height = 28.000000000000000000
+              Size.PlatformDefault = False
+              TextPrompt = 'Enter ListView name'
+            end
+            object lblListViewName: TLabel
+              Position.X = 16.000000000000000000
+              Position.Y = 19.000000000000000000
+              Size.Width = 105.000000000000000000
+              Size.Height = 17.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'ListView Name:'
+              TabOrder = 3
+            end
+            object btnLoadValuesFromDB: TButton
+              Position.X = 472.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 210.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 4
+              Text = 'Load Values From Database'
+              TextSettings.Trimming = None
+              OnClick = btnLoadValuesFromDBClick
+            end
+            object btnSaveValuesToDB: TButton
+              Position.X = 698.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 210.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 5
+              Text = 'Save Values To Database'
+              TextSettings.Trimming = None
+              OnClick = btnSaveValuesToDBClick
+            end
+            object btnCreateSampleData: TButton
+              Position.X = 698.000000000000000000
+              Position.Y = 14.000000000000000000
+              Size.Width = 210.000000000000000000
+              Size.Height = 28.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 6
+              Text = 'Create Sample Data'
+              TextSettings.Trimming = None
+              OnClick = btnCreateSampleDataClick
+            end
+          end
+          object memLog: TMemo
+            Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+            DataDetectorTypes = []
+            ReadOnly = True
+            StyledSettings = [Family, Style, FontColor]
+            TextSettings.Font.Size = 11.000000000000000000
+            Align = Bottom
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Margins.Bottom = 10.000000000000000000
+            Position.Y = 460.000000000000000000
+            Size.Width = 958.000000000000000000
+            Size.Height = 154.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 2
+            Viewport.Width = 954.000000000000000000
+            Viewport.Height = 150.000000000000000000
+          end
+          object lblLog: TLabel
+            Align = Top
+            Margins.Left = 610.000000000000000000
+            Margins.Top = 210.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Position.X = 610.000000000000000000
+            Position.Y = 430.000000000000000000
+            Size.Width = 348.000000000000000000
+            Size.Height = 20.000000000000000000
+            Size.PlatformDefault = False
+            Text = 'Log Output:'
+            TabOrder = 3
+          end
+        end
+        object tabJSON: TTabItem
+          CustomIcon = <
+            item
+            end>
+          TextSettings.Trimming = None
+          IsSelected = False
+          Size.Width = 49.000000000000000000
+          Size.Height = 26.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'JSON'
+          ExplicitSize.cx = 54.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object pnlJSONOps: TRectangle
+            Align = Top
+            Fill.Color = claWhite
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Position.X = 10.000000000000000000
+            Position.Y = 10.000000000000000000
+            Size.Width = 948.000000000000000000
+            Size.Height = 60.000000000000000000
+            Size.PlatformDefault = False
+            Stroke.Color = xFFD0D0D0
+            XRadius = 4.000000000000000000
+            YRadius = 4.000000000000000000
+            object btnExportToJSON: TButton
+              Position.X = 15.000000000000000000
+              Position.Y = 16.000000000000000000
+              Size.Width = 227.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Export To JSON'
+              TextSettings.Trimming = None
+              OnClick = btnExportToJSONClick
+            end
+            object btnLoadFromJSON: TButton
+              Position.X = 252.000000000000000000
+              Position.Y = 16.000000000000000000
+              Size.Width = 227.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'Load From JSON'
+              TextSettings.Trimming = None
+              OnClick = btnLoadFromJSONClick
+            end
+            object btnSaveToJSONFile: TButton
+              Position.X = 490.000000000000000000
+              Position.Y = 16.000000000000000000
+              Size.Width = 227.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 2
+              Text = 'Save To JSON File'
+              TextSettings.Trimming = None
+              OnClick = btnSaveToJSONFileClick
+            end
+            object btnLoadFromJSONFile: TButton
+              Position.X = 726.000000000000000000
+              Position.Y = 16.000000000000000000
+              Size.Width = 227.000000000000000000
+              Size.Height = 30.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Load From JSON File'
+              TextSettings.Trimming = None
+              OnClick = btnLoadFromJSONFileClick
+            end
+          end
+          object memJSON: TMemo
+            Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+            DataDetectorTypes = []
+            StyledSettings = [Family, Style, FontColor]
+            TextSettings.Font.Size = 11.000000000000000000
+            Align = Client
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Margins.Bottom = 10.000000000000000000
+            Size.Width = 948.000000000000000000
+            Size.Height = 534.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 1
+            Viewport.Width = 944.000000000000000000
+            Viewport.Height = 530.000000000000000000
+          end
+        end
+      end
+    end
+  end
+  object dlgOpenJSON: TOpenDialog
+    Left = 480
+    Top = 352
+  end
+  object dlgSaveJSON: TSaveDialog
+    Left = 560
+    Top = 352
+  end
+  object dlgOpenDB: TOpenDialog
+    Left = 640
+    Top = 352
+  end
+  object lytExpandableListView: TLayout
+    Align = Left
+    Margins.Left = 10.000000000000000000
+    Margins.Top = 10.000000000000000000
+    Margins.Right = 10.000000000000000000
+    Margins.Bottom = 10.000000000000000000
+    Position.X = 10.000000000000000000
+    Position.Y = 10.000000000000000000
+    Size.Width = 231.000000000000000000
+    Size.Height = 680.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+  end
+  object FDGUIxWaitCursor1: TFDGUIxWaitCursor
+    Provider = 'FMX'
+    Left = 488
+    Top = 440
+  end
+end
