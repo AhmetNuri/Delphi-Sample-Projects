@@ -12,7 +12,7 @@ uses
 type
   TDBHelper = class
   private
-    FConnection: TFDConnection;
+
     FExpandableListViewJSONHelper : TExpandableListViewJSONHelper;
     // Yardımcı fonksiyonlar
     function GetLastInsertRowID: Integer;
@@ -22,6 +22,7 @@ type
     function GetFieldType(const AFieldType: string): string;
 
   public
+  FConnection: TFDConnection;
     constructor Create(AConnection: TFDConnection );
     destructor Destroy; override;
 
@@ -32,6 +33,7 @@ type
     function JSONToDatabase(const AJSON: string; const AListViewName: string = ''): Integer;
      // sadece fieldvaluları aktar
     function  ExportFieldValuesAsJSON: string;
+  function ImportFieldValuesFromJSON(const AJSONString: string): Boolean;
 
   end;
 
@@ -198,12 +200,13 @@ begin
       Result := RootObj.ToString;
 
     finally
-      QueryListViews.Free;
-      QueryHeaders.Free;
-      QueryFields.Free;
+
+       FreeAndNil(QueryListViews);
+       FreeAndNil(QueryHeaders);
+       FreeAndNil(QueryFields);
 
     // HeadersArray.Free;
-      RootObj.Free;
+       FreeAndNil(RootObj);
     end;
 
   except
@@ -229,6 +232,70 @@ begin
     FreeAndNil(Query);
   end;
 end;
+
+
+
+function TDBHelper.ImportFieldValuesFromJSON(
+  const AJSONString: string): Boolean;
+// DBHelper sınıfında güncellenmiş fonksiyon
+var
+  LJSON: TJSONArray;
+  LJSONObject: TJSONObject;
+  I: Integer;
+  LFieldName, LFieldValue: string;
+begin
+  Result := False;
+  try
+    if AJSONString.Trim.IsEmpty then
+      Exit;
+
+    LJSON := TJSONObject.ParseJSONValue(AJSONString) as TJSONArray;
+    try
+      if not Assigned(LJSON) then
+        Exit;
+
+      // Transaction başlat
+      FConnection.StartTransaction;
+      var FDQuery := TFDQuery.Create(nil);
+      FDQuery.Connection := FConnection;
+      try
+        for I := 0 to LJSON.Count - 1 do
+        begin
+          LJSONObject := LJSON.Items[I] as TJSONObject;
+          if not Assigned(LJSONObject) then
+            Continue;
+
+          LFieldName := LJSONObject.GetValue('name').Value;
+          LFieldValue := LJSONObject.GetValue('value').Value;
+
+          with FDQuery do
+          begin
+            Close;
+            SQL.Text := 'UPDATE fields SET fieldvalue = :fieldvalue WHERE fieldname = :fieldname';
+            ParamByName('fieldvalue').AsString := LFieldValue;
+            ParamByName('fieldname').AsString := LFieldName;
+            ExecSQL;
+          end;
+        end;
+
+        FConnection.Commit;
+        Result := True;
+      except
+        FConnection.Rollback;
+        raise;
+      end;
+    finally
+      LJSON.Free;
+
+    end;
+  except
+    on E: Exception do
+      raise Exception.Create('Veri güncelleme hatası: ' + E.Message);
+  end;
+end;
+
+
+
 
 
 function TDBHelper.GetFieldDataType(const AFieldDataType: string): string;
@@ -515,7 +582,7 @@ begin
                       FieldObj.AddPair('VertIncrement', TJSONBool.Create(VertInc));
                     end;
                   finally
-                    PropsObj.Free;
+                    FreeAndNil( PropsObj);
                   end;
                 end;
               end;
@@ -622,11 +689,11 @@ begin
       // Return JSON output
       Result := JSONObject.ToString;
     finally
-      QueryListViews.Free;
-      QueryHeaders.Free;
-      QueryFields.Free;
-      QueryParams.Free;
-      QueryComboItems.Free;
+      FreeAndNil( QueryListViews);
+      FreeAndNil(QueryHeaders);
+      FreeAndNil(  QueryFields);
+      FreeAndNil(  QueryParams);
+      FreeAndNil(  QueryComboItems);
     end;
   except
     on E: Exception do
@@ -918,7 +985,7 @@ begin
                   end;
                 end;
               finally
-                PropertiesObj.Free;
+               FreeAndNil(  PropertiesObj);
               end;
             end;
           end;
@@ -939,7 +1006,7 @@ begin
     end;
 
   finally
-    JSONObject.Free;
+    FreeAndNil( JSONObject);
   end;
 end;
 
