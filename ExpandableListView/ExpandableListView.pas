@@ -31,7 +31,7 @@ type
   end;
 
   TControlType = (ctEdit, ctNumberBox, ctCheckBox, ctSwitch, ctComboBox,
-    ctColorComboBox, ctRadioButton);
+    ctColorComboBox, ctRadioButton , ctMemo);
   TNumberValueType = (nvtInteger, nvtFloat, nvtCurrency);
 
   THeaderClickEvent = procedure(Sender: TObject; HeaderInfo: THeaderInfo)
@@ -96,6 +96,9 @@ type
     function AddRadioButtonField(AHeaderInfo: THeaderInfo;
       const AFieldName: string; AValue: Boolean;
       const AGroupName: string = 'DefaultRadioGroup'): TRadioButton;
+    function AddMemoField(AHeaderInfo: THeaderInfo; const AFieldName: string;
+      const AValue: string = ''; AHeight: Single = 80): TMemo;
+
     // Add the declaration here
     function GetSelectedRadioButtonInGroup(const AGroupName: string)
       : TRadioButton;
@@ -252,6 +255,106 @@ begin
   CreateHeaderSection(HeaderInfo);
   Result := HeaderInfo;
 end;
+
+function TExpandableListView.AddMemoField(AHeaderInfo: THeaderInfo;
+  const AFieldName: string; const AValue: string = ''; AHeight: Single = 80): TMemo;
+var
+  DataItem: TListBoxItem;
+  Layout: TLayout;
+  Rectangle: TRectangle;
+  lbl: TLabel;
+  Memo: TMemo;
+  HeaderIndex, LastChildIndex: Integer;
+begin
+  Result := nil;
+  try
+    // Başlık öğesinin indeksini bul
+    HeaderIndex := FindListBoxItemIndex(AHeaderInfo.HeaderItem);
+    if HeaderIndex < 0 then
+    begin
+      raise Exception.Create('Başlık öğesi bulunamadı!');
+      Exit;
+    end;
+
+    // Son alt öğe indeksini bul
+    LastChildIndex := HeaderIndex;
+    for var i := 0 to AHeaderInfo.ChildItems.Count - 1 do
+    begin
+      var idx := FindListBoxItemIndex(AHeaderInfo.ChildItems[i]);
+      if idx > LastChildIndex then
+        LastChildIndex := idx;
+    end;
+
+    // Yeni alt öğeyi oluştur
+    DataItem := TListBoxItem.Create(Self);
+    DataItem.Height := 0; // Başlangıçta 0 yükseklik
+    DataItem.Selectable := False;
+    DataItem.Text := '';
+    DataItem.Visible := False; // Başlangıçta gizli
+    DataItem.Opacity := 0; // Başlangıçta saydam
+
+    // Alt öğeyi doğru pozisyona ekle
+    InsertObject(LastChildIndex + 1, DataItem);
+
+    // HeaderInfo'nun ChildItems listesine ekle
+    AHeaderInfo.ChildItems.Add(DataItem);
+
+    // Arkaplan
+    Rectangle := TRectangle.Create(DataItem);
+    Rectangle.Fill.Color := TAlphaColorRec.White;
+    Rectangle.Stroke.Color := $FFE0E0E0;
+    Rectangle.Stroke.Thickness := 1;
+    Rectangle.Align := TAlignLayout.Client;
+    Rectangle.XRadius := 6;
+    Rectangle.YRadius := 6;
+    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
+    Rectangle.Opacity := 0.95;
+    DataItem.AddObject(Rectangle);
+
+    // Ana layout
+    Layout := TLayout.Create(DataItem);
+    Layout.Align := TAlignLayout.Client;
+    Layout.Padding.Rect := TRectF.Create(16, 4, 16, 4);
+    DataItem.AddObject(Layout);
+
+    // Etiket
+    lbl := TLabel.Create(Layout);
+    lbl.Align := TAlignLayout.Top;
+    lbl.Height := 20;
+    lbl.Text := AFieldName;
+    lbl.StyledSettings := [];
+    lbl.TextSettings.Font.Size := 14;
+    lbl.TextSettings.Font.Family := 'Segoe UI';
+    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
+    Layout.AddObject(lbl);
+
+    // Memo kontrolü
+    Memo := TMemo.Create(Layout);
+    Memo.Align := TAlignLayout.Client;
+    Memo.Margins.Top := 8;
+    Memo.StyleLookup := 'memostyle';
+    Memo.Text := AValue;
+    Memo.Height := AHeight;
+    Layout.AddObject(Memo);
+
+    Result := Memo;
+
+    // Eğer başlık açıksa, yeni eklenen öğeyi hemen göster
+    if AHeaderInfo.IsExpanded then
+    begin
+      DataItem.Visible := True;
+      DataItem.Opacity := 0;
+      DataItem.Height := 0;
+
+      TAnimator.AnimateFloat(DataItem, 'Height', AHeight + 35, 0.3);
+      TAnimator.AnimateFloat(DataItem, 'Opacity', 1, 0.3);
+    end;
+  except
+    on E: Exception do
+      raise Exception.Create('AddMemoField Hatası: ' + E.Message);
+  end;
+end;
+
 
 function TExpandableListView.FindLabelTextForComponent
   (Component: TComponent): string;
@@ -537,6 +640,8 @@ begin
 
     if AShow then
     begin
+
+
       ChildItem.Height := 50;
       ChildItem.Opacity := 1;
       ChildItem.Visible := True;
@@ -550,11 +655,15 @@ begin
   end;
 end;
 
-procedure TExpandableListView.ToggleHeaderSection(AHeaderInfo: THeaderInfo);
+ procedure TExpandableListView.ToggleHeaderSection(AHeaderInfo: THeaderInfo);
 var
-  i: Integer;
+  i, j, k: Integer;
   Arrow: TPath;
   Layout: TLayout;
+  ChildItem: TListBoxItem;
+  Component: TComponent;
+  HasMemo: Boolean;
+  ItemHeight: Single;
 begin
   try
     // Durumu değiştir
@@ -566,7 +675,7 @@ begin
       if (AHeaderInfo.HeaderItem.Components[i] is TLayout) then
       begin
         Layout := TLayout(AHeaderInfo.HeaderItem.Components[i]);
-        for var j := 0 to Layout.ComponentCount - 1 do
+        for j := 0 to Layout.ComponentCount - 1 do
         begin
           if (Layout.Components[j] is TPath) and
             (Layout.Components[j].Name = 'Arrow') then
@@ -592,13 +701,44 @@ begin
       // Alt öğeleri göster
       for i := 0 to AHeaderInfo.ChildItems.Count - 1 do
       begin
-        var
         ChildItem := AHeaderInfo.ChildItems[i];
         ChildItem.Height := 0;
         ChildItem.Opacity := 0;
         ChildItem.Visible := True;
 
-        TAnimator.AnimateFloat(ChildItem, 'Height', 50, 0.3);
+        // TMemo kontrolü var mı diye kontrol et
+        HasMemo := False;
+        ItemHeight := 50; // Varsayılan yükseklik
+
+        // ChildItem içindeki tüm bileşenleri kontrol et
+        for j := 0 to ChildItem.ComponentCount - 1 do
+        begin
+          Component := ChildItem.Components[j];
+
+          // Eğer Layout bulunduysa onun içindeki bileşenleri kontrol et
+          if Component is TLayout then
+          begin
+            Layout := TLayout(Component);
+            for k := 0 to Layout.ComponentCount - 1 do
+            begin
+              // Memo kontrolü bulduysa
+              if Layout.Components[k] is TMemo then
+              begin
+                HasMemo := True;
+                var Memo := TMemo(Layout.Components[k]);
+                // Memo içeriğine göre yükseklik hesapla (minimum 100 piksel)
+                ItemHeight := Max(100, Memo.Lines.Count * 20 + 40); // Her satır için 20 piksel + ekstra alan
+                Break;
+              end;
+            end;
+          end;
+
+          if HasMemo then
+            Break;
+        end;
+
+        // Bulunan bileşene göre yüksekliği ayarla
+        TAnimator.AnimateFloat(ChildItem, 'Height', ItemHeight, 0.3);
         TAnimator.AnimateFloat(ChildItem, 'Opacity', 1, 0.3);
       end;
     end
@@ -607,7 +747,6 @@ begin
       // Alt öğeleri gizle - iyileştirilmiş versiyon
       for i := 0 to AHeaderInfo.ChildItems.Count - 1 do
       begin
-        var
         ChildItem := AHeaderInfo.ChildItems[i];
 
         // Önce opaklığı animasyonla azalt
@@ -637,7 +776,6 @@ begin
       raise Exception.Create('ToggleHeaderSection Hatası: ' + E.Message);
   end;
 end;
-
 // SVG ikonunu güncelleme
 procedure TExpandableListView.UpdateSVGIcon(AHeaderInfo: THeaderInfo);
 begin
@@ -743,6 +881,8 @@ begin
       AddComboBoxField(AHeaderInfo, AFieldName, ['Seçenek 1', 'Seçenek 2']);
     ctColorComboBox:
       AddColorBoxField(AHeaderInfo, AFieldName, TAlphaColorRec.Blue);
+    ctMemo:
+      AddMemoField(AHeaderInfo, AFieldName, '');  // Memo için destek ekledik
   end;
 end;
 
