@@ -840,27 +840,46 @@ procedure TExpandableListView.SelectControl(AControl: TControl);
 begin
   if not FEnableAutoSelect then
     Exit; // Eğer otomatik seçim devre dışıysa, herhangi bir işlem yapma
-
-  if AControl is TEdit then
-  begin
-    // Edit için metni seç
-    TEdit(AControl).SetFocus;
-    TEdit(AControl).SelStart := 0;
-    TEdit(AControl).SelLength := Length(TEdit(AControl).Text);
-  end
-  else if AControl is TMemo then
-  begin
-    // Memo için metni seç
-    TMemo(AControl).SetFocus;
-    TMemo(AControl).SelStart := 0;
-    TMemo(AControl).SelLength := Length(TMemo(AControl).Text);
-  end
-  else if AControl is TNumberBox then
-  begin
-    // NumberBox için değeri seç
-    TNumberBox(AControl).SetFocus;
-    TNumberBox(AControl).Value := TNumberBox(AControl).Value; // Odaklanma için
-  end;
+   TThread.CreateAnonymousThread(
+    procedure
+    begin
+      // Kısa bir gecikme ekleyerek kontrolün hazır olmasını sağlayalım
+      Sleep(50);
+      TThread.Synchronize(nil,
+        procedure
+        begin
+          if AControl is TEdit then
+          begin
+            var Edit := TEdit(AControl);
+            Edit.SetFocus;
+            if Edit.CanFocus then
+            begin
+              Edit.SelStart := 0;
+              Edit.SelLength := Length(Edit.Text);
+            end;
+          end
+          else if AControl is TMemo then
+          begin
+            var Memo := TMemo(AControl);
+            Memo.SetFocus;
+            if Memo.CanFocus then
+            begin
+              Memo.SelStart := 0;
+              Memo.SelLength := Length(Memo.Text);
+            end;
+          end
+          else if AControl is TNumberBox then
+          begin
+            var NumBox := TNumberBox(AControl);
+            NumBox.SetFocus;
+            if NumBox.CanFocus then
+            begin
+              // NumberBox için özel bir seçim işlemi gerekiyorsa burada yapılabilir
+              NumBox.SelectAll;
+            end;
+          end;
+        end);
+    end).Start;
 end;
 // SVG verisi ayarlama
 procedure TExpandableListView.SetHeaderSVG(AHeaderInfo: THeaderInfo;
@@ -1097,6 +1116,9 @@ begin
     NumBox.Margins.Left := 8;
     NumBox.Min := AMin;
     NumBox.Max := AMax;
+    NumBox.VertIncrement := 0;
+    NumBox.HorzIncrement := 0;
+
    AddControlEventHandlers(NumBox); // OnEnter olay işleyicilerini ekle
 
     // ValueType ayarlaması
