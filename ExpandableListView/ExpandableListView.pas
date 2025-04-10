@@ -10,7 +10,7 @@ uses
   FMX.Objects, FMX.Controls.Presentation, FMX.Edit, FMX.NumberBox, FMX.Layouts,
   FMX.StdCtrls, FMX.Ani, FMX.ListBox, System.Generics.Collections, FMX.Colors,
   FMX.Filter.Effects, System.Skia, FMX.Skia, FMX.Text, System.JSON, Math,
-  StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar,  FMX.DateTimeCtrls.Types
+  StrUtils, FMX.DateTimeCtrls, FMX.Memo, FMX.Calendar, FMX.DateTimeCtrls.Types
 
     , System.DateUtils;
 // SVGIcon için eklendi
@@ -31,7 +31,7 @@ type
   end;
 
   TControlType = (ctEdit, ctNumberBox, ctCheckBox, ctSwitch, ctComboBox,
-    ctColorComboBox, ctRadioButton , ctMemo);
+    ctColorComboBox, ctRadioButton, ctMemo);
   TNumberValueType = (nvtInteger, nvtFloat, nvtCurrency);
 
   THeaderClickEvent = procedure(Sender: TObject; HeaderInfo: THeaderInfo)
@@ -50,6 +50,15 @@ type
     FItemTextSize: Single;
     FEnableLogging: Boolean; // Loglama açık/kapalı durumu
     FLogFilePath: string; // Log dosyası yolu
+    // Add to private section
+    FItemBackgroundColor: TAlphaColor;
+    FItemBorderColor: TAlphaColor;
+    // label   settings
+    FLabelWidth: Single;
+    FLabelFontSize: Single;
+    FLabelFontFamily: string;
+    FLabelTextColor: TAlphaColor;
+    FEnableAutoSelect: Boolean; // Otomatik seçim parametresi
 
     procedure CreateHeaderSection(AHeaderInfo: THeaderInfo);
     procedure HeaderRectangleClick(Sender: TObject);
@@ -61,12 +70,15 @@ type
     function ColorToString(Color: TAlphaColor): string;
     procedure DebugLog(const AMessage: string);
     function CreateBackgroundRectangle(Parent: TListBoxItem): TRectangle;
+    function CreateFieldLabel(Parent: TFmxObject; const AFieldName: string): TLabel;
+    procedure SelectControl(AControl: TControl);
+    procedure AddControlEventHandlers(AControl: TControl);
+     procedure HandleControlEnter(Sender: TObject); // OnEnter için bir metot
 
   protected
     procedure Loaded; override;
   public
     FHeaders: TList<THeaderInfo>;
-
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -128,6 +140,13 @@ type
     property ItemTextSize: Single read FItemTextSize write FItemTextSize;
     property EnableLogging: Boolean read FEnableLogging write FEnableLogging;
     property LogFilePath: string read FLogFilePath write FLogFilePath;
+    // Add these properties to the published section of TExpandableListView class
+    property ItemBackgroundColor: TAlphaColor read FItemBackgroundColor
+      write FItemBackgroundColor default TAlphaColorRec.White;
+    property ItemBorderColor: TAlphaColor read FItemBorderColor
+      write FItemBorderColor default $FFE0E0E0;
+
+
   end;
 
 procedure Register;
@@ -180,22 +199,51 @@ begin
   FHeaderTextColor := TAlphaColorRec.White;
   FHeaderTextSize := 16;
   FItemTextSize := 14;
+  // Yeni renk özellikleri için varsayılan değerler
+  FItemBackgroundColor := TAlphaColorRec.Black;
+  FItemBorderColor := $FFE0E0E0;
+
+  // Etiket özellikleri için varsayılan değerler
+  FLabelWidth := 120;
+  FLabelFontSize := 14;
+  FLabelFontFamily := 'Segoe UI';
+  FLabelTextColor := TAlphaColorRec.White;
+
+  FEnableAutoSelect := True; // Varsayılan olarak otomatik seçim etkin
+
   // Loglama için varsayılan ayarlar
   FEnableLogging := False;
   FLogFilePath := ('ExpandableListView.log');
+
 end;
 
 function TExpandableListView.CreateBackgroundRectangle(Parent: TListBoxItem)
   : TRectangle;
 begin
   Result := TRectangle.Create(Parent);
-  Result.Fill.Color := TAlphaColorRec.White;
-  Result.Stroke.Kind := TBrushKind.None;
+  Result.Fill.Color := FItemBackgroundColor;
+  Result.Stroke.Kind := TBrushKind.Solid;
+  Result.Stroke.Color := FItemBorderColor;
+  Result.Stroke.Thickness := 1;
   Result.Align := TAlignLayout.Client;
   Result.XRadius := 4;
   Result.YRadius := 4;
   Result.Margins.Rect := TRectF.Create(8, 2, 8, 2);
   Result.Opacity := 0.8;
+  Parent.AddObject(Result);
+end;
+
+function TExpandableListView.CreateFieldLabel(Parent: TFmxObject;
+  const AFieldName: string): TLabel;
+begin
+  Result := TLabel.Create(Parent);
+  Result.Align := TAlignLayout.Left;
+  Result.Width := FLabelWidth;
+  Result.Text := AFieldName;
+  Result.StyledSettings := [];
+  Result.TextSettings.Font.Size := FLabelFontSize;
+  Result.TextSettings.Font.Family := FLabelFontFamily;
+  Result.TextSettings.FontColor := FLabelTextColor;
   Parent.AddObject(Result);
 end;
 
@@ -257,7 +305,8 @@ begin
 end;
 
 function TExpandableListView.AddMemoField(AHeaderInfo: THeaderInfo;
-  const AFieldName: string; const AValue: string = ''; AHeight: Single = 80): TMemo;
+  const AFieldName: string; const AValue: string = '';
+  AHeight: Single = 80): TMemo;
 var
   DataItem: TListBoxItem;
   Layout: TLayout;
@@ -280,7 +329,8 @@ begin
     LastChildIndex := HeaderIndex;
     for var i := 0 to AHeaderInfo.ChildItems.Count - 1 do
     begin
-      var idx := FindListBoxItemIndex(AHeaderInfo.ChildItems[i]);
+      var
+      idx := FindListBoxItemIndex(AHeaderInfo.ChildItems[i]);
       if idx > LastChildIndex then
         LastChildIndex := idx;
     end;
@@ -299,17 +349,8 @@ begin
     // HeaderInfo'nun ChildItems listesine ekle
     AHeaderInfo.ChildItems.Add(DataItem);
 
-    // Arkaplan
-    Rectangle := TRectangle.Create(DataItem);
-    Rectangle.Fill.Color := TAlphaColorRec.White;
-    Rectangle.Stroke.Color := $FFE0E0E0;
-    Rectangle.Stroke.Thickness := 1;
-    Rectangle.Align := TAlignLayout.Client;
-    Rectangle.XRadius := 6;
-    Rectangle.YRadius := 6;
-    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-    Rectangle.Opacity := 0.95;
-    DataItem.AddObject(Rectangle);
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
 
     // Ana layout
     Layout := TLayout.Create(DataItem);
@@ -325,7 +366,7 @@ begin
     lbl.StyledSettings := [];
     lbl.TextSettings.Font.Size := 14;
     lbl.TextSettings.Font.Family := 'Segoe UI';
-    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
+    lbl.TextSettings.FontColor := TAlphaColorRec.White;
     Layout.AddObject(lbl);
 
     // Memo kontrolü
@@ -335,6 +376,8 @@ begin
     Memo.StyleLookup := 'memostyle';
     Memo.Text := AValue;
     Memo.Height := AHeight;
+    AddControlEventHandlers(Memo); // OnEnter olay işleyicilerini ekle
+
     Layout.AddObject(Memo);
 
     Result := Memo;
@@ -354,7 +397,6 @@ begin
       raise Exception.Create('AddMemoField Hatası: ' + E.Message);
   end;
 end;
-
 
 function TExpandableListView.FindLabelTextForComponent
   (Component: TComponent): string;
@@ -574,6 +616,13 @@ begin
   Layout.AddObject(Arrow);
 end;
 
+procedure TExpandableListView.HandleControlEnter(Sender: TObject);
+begin
+  // Odaklanılan kontrolü seç
+  if Sender is TControl then
+    SelectControl(TControl(Sender));
+end;
+
 procedure TExpandableListView.HeaderRectangleClick(Sender: TObject);
 var
   HeaderInfo: THeaderInfo;
@@ -641,7 +690,6 @@ begin
     if AShow then
     begin
 
-
       ChildItem.Height := 50;
       ChildItem.Opacity := 1;
       ChildItem.Visible := True;
@@ -655,7 +703,7 @@ begin
   end;
 end;
 
- procedure TExpandableListView.ToggleHeaderSection(AHeaderInfo: THeaderInfo);
+procedure TExpandableListView.ToggleHeaderSection(AHeaderInfo: THeaderInfo);
 var
   i, j, k: Integer;
   Arrow: TPath;
@@ -725,9 +773,11 @@ begin
               if Layout.Components[k] is TMemo then
               begin
                 HasMemo := True;
-                var Memo := TMemo(Layout.Components[k]);
+                var
+                Memo := TMemo(Layout.Components[k]);
                 // Memo içeriğine göre yükseklik hesapla (minimum 100 piksel)
-                ItemHeight := Max(100, Memo.Lines.Count * 20 + 40); // Her satır için 20 piksel + ekstra alan
+                ItemHeight := Max(100, Memo.Lines.Count * 20 + 40);
+                // Her satır için 20 piksel + ekstra alan
                 Break;
               end;
             end;
@@ -776,6 +826,7 @@ begin
       raise Exception.Create('ToggleHeaderSection Hatası: ' + E.Message);
   end;
 end;
+
 // SVG ikonunu güncelleme
 procedure TExpandableListView.UpdateSVGIcon(AHeaderInfo: THeaderInfo);
 begin
@@ -785,6 +836,32 @@ begin
   end;
 end;
 
+procedure TExpandableListView.SelectControl(AControl: TControl);
+begin
+  if not FEnableAutoSelect then
+    Exit; // Eğer otomatik seçim devre dışıysa, herhangi bir işlem yapma
+
+  if AControl is TEdit then
+  begin
+    // Edit için metni seç
+    TEdit(AControl).SetFocus;
+    TEdit(AControl).SelStart := 0;
+    TEdit(AControl).SelLength := Length(TEdit(AControl).Text);
+  end
+  else if AControl is TMemo then
+  begin
+    // Memo için metni seç
+    TMemo(AControl).SetFocus;
+    TMemo(AControl).SelStart := 0;
+    TMemo(AControl).SelLength := Length(TMemo(AControl).Text);
+  end
+  else if AControl is TNumberBox then
+  begin
+    // NumberBox için değeri seç
+    TNumberBox(AControl).SetFocus;
+    TNumberBox(AControl).Value := TNumberBox(AControl).Value; // Odaklanma için
+  end;
+end;
 // SVG verisi ayarlama
 procedure TExpandableListView.SetHeaderSVG(AHeaderInfo: THeaderInfo;
 const ASVGData: string);
@@ -835,17 +912,8 @@ begin
   // HeaderInfo'nun ChildItems listesine ekle
   AHeaderInfo.ChildItems.Add(DataItem);
 
-  // Arkaplan
-  Rectangle := TRectangle.Create(DataItem);
-  Rectangle.Fill.Color := TAlphaColorRec.White;
-  Rectangle.Stroke.Color := $FFE0E0E0;
-  Rectangle.Stroke.Thickness := 1;
-  Rectangle.Align := TAlignLayout.Client;
-  Rectangle.XRadius := 6;
-  Rectangle.YRadius := 6;
-  Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-  Rectangle.Opacity := 0.95;
-  DataItem.AddObject(Rectangle);
+  // Arkaplan için ortak fonksiyonu kullan
+  Rectangle := CreateBackgroundRectangle(DataItem);
 
   // Ana layout
   Layout := TLayout.Create(DataItem);
@@ -854,15 +922,7 @@ begin
   DataItem.AddObject(Layout);
 
   // Etiket
-  lbl := TLabel.Create(Layout);
-  lbl.Align := TAlignLayout.Left;
-  lbl.Width := 120;
-  lbl.Text := AFieldName;
-  lbl.StyledSettings := [];
-  lbl.TextSettings.Font.Size := 14;
-  lbl.TextSettings.Font.Family := 'Segoe UI';
-  lbl.TextSettings.FontColor := TAlphaColorRec.Black;
-  Layout.AddObject(lbl);
+lbl := CreateFieldLabel(Layout, AFieldName);
 
   // Etiket metnini DataItem.Tag'de sakla
   DataItem.TagString := AFieldName;
@@ -882,7 +942,7 @@ begin
     ctColorComboBox:
       AddColorBoxField(AHeaderInfo, AFieldName, TAlphaColorRec.Blue);
     ctMemo:
-      AddMemoField(AHeaderInfo, AFieldName, '');  // Memo için destek ekledik
+      AddMemoField(AHeaderInfo, AFieldName, ''); // Memo için destek ekledik
   end;
 end;
 
@@ -932,17 +992,8 @@ begin
     // HeaderInfo'nun ChildItems listesine ekle
     AHeaderInfo.ChildItems.Add(DataItem);
 
-    // Arkaplan
-    Rectangle := TRectangle.Create(DataItem);
-    Rectangle.Fill.Color := TAlphaColorRec.White;
-    Rectangle.Stroke.Color := $FFE0E0E0;
-    Rectangle.Stroke.Thickness := 1;
-    Rectangle.Align := TAlignLayout.Client;
-    Rectangle.XRadius := 6;
-    Rectangle.YRadius := 6;
-    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-    Rectangle.Opacity := 0.95;
-    DataItem.AddObject(Rectangle);
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
 
     // Ana layout
     Layout := TLayout.Create(DataItem);
@@ -951,15 +1002,8 @@ begin
     DataItem.AddObject(Layout);
 
     // Etiket
-    lbl := TLabel.Create(Layout);
-    lbl.Align := TAlignLayout.Left;
-    lbl.Width := 120;
-    lbl.Text := AFieldName;
-    lbl.StyledSettings := [];
-    lbl.TextSettings.Font.Size := 14;
-    lbl.TextSettings.Font.Family := 'Segoe UI';
-    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
-    Layout.AddObject(lbl);
+    lbl := CreateFieldLabel(Layout, AFieldName);
+
 
     // Edit kontrolü
     Edit := TEdit.Create(Layout);
@@ -968,6 +1012,7 @@ begin
     Edit.StyleLookup := 'editstyle';
     Edit.Text := AValue;
     Layout.AddObject(Edit);
+    AddControlEventHandlers(Edit); // OnEnter olay işleyicilerini ekle
 
     Result := Edit;
 
@@ -1033,17 +1078,8 @@ begin
     // HeaderInfo'nun ChildItems listesine ekle
     AHeaderInfo.ChildItems.Add(DataItem);
 
-    // Arkaplan
-    Rectangle := TRectangle.Create(DataItem);
-    Rectangle.Fill.Color := TAlphaColorRec.White;
-    Rectangle.Stroke.Color := $FFE0E0E0;
-    Rectangle.Stroke.Thickness := 1;
-    Rectangle.Align := TAlignLayout.Client;
-    Rectangle.XRadius := 6;
-    Rectangle.YRadius := 6;
-    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-    Rectangle.Opacity := 0.95;
-    DataItem.AddObject(Rectangle);
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
 
     // Ana layout
     Layout := TLayout.Create(DataItem);
@@ -1052,15 +1088,8 @@ begin
     DataItem.AddObject(Layout);
 
     // Etiket
-    lbl := TLabel.Create(Layout);
-    lbl.Align := TAlignLayout.Left;
-    lbl.Width := 120;
-    lbl.Text := AFieldName;
-    lbl.StyledSettings := [];
-    lbl.TextSettings.Font.Size := 14;
-    lbl.TextSettings.Font.Family := 'Segoe UI';
-    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
-    Layout.AddObject(lbl);
+  lbl := CreateFieldLabel(Layout, AFieldName);
+
 
     // NumberBox kontrolü
     NumBox := TNumberBox.Create(Layout);
@@ -1068,6 +1097,7 @@ begin
     NumBox.Margins.Left := 8;
     NumBox.Min := AMin;
     NumBox.Max := AMax;
+   AddControlEventHandlers(NumBox); // OnEnter olay işleyicilerini ekle
 
     // ValueType ayarlaması
     case AValueType of
@@ -1158,17 +1188,8 @@ begin
     // HeaderInfo'nun ChildItems listesine ekle
     AHeaderInfo.ChildItems.Add(DataItem);
 
-    // Arkaplan
-    Rectangle := TRectangle.Create(DataItem);
-    Rectangle.Fill.Color := TAlphaColorRec.White;
-    Rectangle.Stroke.Color := $FFE0E0E0;
-    Rectangle.Stroke.Thickness := 1;
-    Rectangle.Align := TAlignLayout.Client;
-    Rectangle.XRadius := 6;
-    Rectangle.YRadius := 6;
-    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-    Rectangle.Opacity := 0.95;
-    DataItem.AddObject(Rectangle);
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
 
     // Ana layout
     Layout := TLayout.Create(DataItem);
@@ -1177,15 +1198,9 @@ begin
     DataItem.AddObject(Layout);
 
     // Etiket
-    lbl := TLabel.Create(Layout);
-    lbl.Align := TAlignLayout.Left;
-    lbl.Width := 120;
-    lbl.Text := AFieldName;
-    lbl.StyledSettings := [];
-    lbl.TextSettings.Font.Size := 14;
-    lbl.TextSettings.Font.Family := 'Segoe UI';
-    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
-    Layout.AddObject(lbl);
+  lbl := CreateFieldLabel(Layout, AFieldName);
+
+
 
     // CheckBox kontrolü
     RadioBtn := TRadioButton.Create(Layout);
@@ -1275,18 +1290,8 @@ begin
 
     // HeaderInfo'nun ChildItems listesine ekle
     AHeaderInfo.ChildItems.Add(DataItem);
-
-    // Arkaplan
-    Rectangle := TRectangle.Create(DataItem);
-    Rectangle.Fill.Color := TAlphaColorRec.White;
-    Rectangle.Stroke.Color := $FFE0E0E0;
-    Rectangle.Stroke.Thickness := 1;
-    Rectangle.Align := TAlignLayout.Client;
-    Rectangle.XRadius := 6;
-    Rectangle.YRadius := 6;
-    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-    Rectangle.Opacity := 0.95;
-    DataItem.AddObject(Rectangle);
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
 
     // Ana layout
     Layout := TLayout.Create(DataItem);
@@ -1295,15 +1300,9 @@ begin
     DataItem.AddObject(Layout);
 
     // Etiket
-    lbl := TLabel.Create(Layout);
-    lbl.Align := TAlignLayout.Left;
-    lbl.Width := 120;
-    lbl.Text := AFieldName;
-    lbl.StyledSettings := [];
-    lbl.TextSettings.Font.Size := 14;
-    lbl.TextSettings.Font.Family := 'Segoe UI';
-    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
-    Layout.AddObject(lbl);
+  lbl := CreateFieldLabel(Layout, AFieldName);
+
+
 
     // CheckBox kontrolü
     CheckBox := TCheckBox.Create(Layout);
@@ -1375,17 +1374,8 @@ begin
     // HeaderInfo'nun ChildItems listesine ekle
     AHeaderInfo.ChildItems.Add(DataItem);
 
-    // Arkaplan
-    Rectangle := TRectangle.Create(DataItem);
-    Rectangle.Fill.Color := TAlphaColorRec.White;
-    Rectangle.Stroke.Color := $FFE0E0E0;
-    Rectangle.Stroke.Thickness := 1;
-    Rectangle.Align := TAlignLayout.Client;
-    Rectangle.XRadius := 6;
-    Rectangle.YRadius := 6;
-    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-    Rectangle.Opacity := 0.95;
-    DataItem.AddObject(Rectangle);
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
 
     // Ana layout
     Layout := TLayout.Create(DataItem);
@@ -1394,15 +1384,9 @@ begin
     DataItem.AddObject(Layout);
 
     // Etiket
-    lbl := TLabel.Create(Layout);
-    lbl.Align := TAlignLayout.Left;
-    lbl.Width := 120;
-    lbl.Text := AFieldName;
-    lbl.StyledSettings := [];
-    lbl.TextSettings.Font.Size := 14;
-    lbl.TextSettings.Font.Family := 'Segoe UI';
-    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
-    Layout.AddObject(lbl);
+ lbl := CreateFieldLabel(Layout, AFieldName);
+
+
 
     // Switch kontrolü
     Switch := TSwitch.Create(Layout);
@@ -1475,17 +1459,8 @@ begin
     // HeaderInfo'nun ChildItems listesine ekle
     AHeaderInfo.ChildItems.Add(DataItem);
 
-    // Arkaplan
-    Rectangle := TRectangle.Create(DataItem);
-    Rectangle.Fill.Color := TAlphaColorRec.White;
-    Rectangle.Stroke.Color := $FFE0E0E0;
-    Rectangle.Stroke.Thickness := 1;
-    Rectangle.Align := TAlignLayout.Client;
-    Rectangle.XRadius := 6;
-    Rectangle.YRadius := 6;
-    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-    Rectangle.Opacity := 0.95;
-    DataItem.AddObject(Rectangle);
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
 
     // Ana layout
     Layout := TLayout.Create(DataItem);
@@ -1494,15 +1469,9 @@ begin
     DataItem.AddObject(Layout);
 
     // Etiket
-    lbl := TLabel.Create(Layout);
-    lbl.Align := TAlignLayout.Left;
-    lbl.Width := 120;
-    lbl.Text := AFieldName;
-    lbl.StyledSettings := [];
-    lbl.TextSettings.Font.Size := 14;
-    lbl.TextSettings.Font.Family := 'Segoe UI';
-    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
-    Layout.AddObject(lbl);
+ lbl := CreateFieldLabel(Layout, AFieldName);
+
+
 
     // ComboBox kontrolü
     ComboBox := TComboBox.Create(Layout);
@@ -1537,6 +1506,21 @@ begin
   end;
 end;
 
+procedure TExpandableListView.AddControlEventHandlers(AControl: TControl);
+begin
+ // Bileşenlerin OnEnter olayını ayarlar
+  // Bileşenlerin OnEnter olayını ayarlar
+  if AControl is TEdit then
+    TEdit(AControl).OnEnter := HandleControlEnter
+  else if AControl is TMemo then
+    TMemo(AControl).OnEnter := HandleControlEnter
+  else if AControl is TNumberBox then
+    TNumberBox(AControl).OnEnter := HandleControlEnter;
+
+    end;
+
+
+
 function TExpandableListView.AddColorBoxField(AHeaderInfo: THeaderInfo;
 const AFieldName: string; ASelectedColor: TAlphaColor): TColorComboBox;
 var
@@ -1567,6 +1551,7 @@ begin
         LastChildIndex := idx;
     end;
 
+
     // Yeni alt öğeyi oluştur
     DataItem := TListBoxItem.Create(Self);
     DataItem.Height := 0; // Başlangıçta 0 yükseklik
@@ -1581,17 +1566,8 @@ begin
     // HeaderInfo'nun ChildItems listesine ekle
     AHeaderInfo.ChildItems.Add(DataItem);
 
-    // Arkaplan
-    Rectangle := TRectangle.Create(DataItem);
-    Rectangle.Fill.Color := TAlphaColorRec.White;
-    Rectangle.Stroke.Color := $FFE0E0E0;
-    Rectangle.Stroke.Thickness := 1;
-    Rectangle.Align := TAlignLayout.Client;
-    Rectangle.XRadius := 6;
-    Rectangle.YRadius := 6;
-    Rectangle.Margins.Rect := TRectF.Create(16, 4, 16, 4);
-    Rectangle.Opacity := 0.95;
-    DataItem.AddObject(Rectangle);
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
 
     // Ana layout
     Layout := TLayout.Create(DataItem);
@@ -1600,15 +1576,9 @@ begin
     DataItem.AddObject(Layout);
 
     // Etiket
-    lbl := TLabel.Create(Layout);
-    lbl.Align := TAlignLayout.Left;
-    lbl.Width := 120;
-    lbl.Text := AFieldName;
-    lbl.StyledSettings := [];
-    lbl.TextSettings.Font.Size := 14;
-    lbl.TextSettings.Font.Family := 'Segoe UI';
-    lbl.TextSettings.FontColor := TAlphaColorRec.Black;
-    Layout.AddObject(lbl);
+ lbl := CreateFieldLabel(Layout, AFieldName);
+
+
 
     // ColorBox kontrolü
     ColorBox := TColorComboBox.Create(Layout);
