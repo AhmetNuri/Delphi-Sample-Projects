@@ -1,4 +1,4 @@
-   unit ExpandableListView;
+  unit ExpandableListView;
 
 interface
 
@@ -60,6 +60,9 @@ type
     FLabelTextColor: TAlphaColor;
     FEnableAutoSelect: Boolean; // Otomatik seçim parametresi
 
+    // New field to store image information for radio buttons
+    FRadioButtonImagePaths: TDictionary<TRadioButton, string>;
+
     procedure CreateHeaderSection(AHeaderInfo: THeaderInfo);
     procedure HeaderRectangleClick(Sender: TObject);
     procedure ToggleHeaderSection(AHeaderInfo: THeaderInfo);
@@ -116,6 +119,21 @@ type
       : TRadioButton;
     function GetSelectedRadioButtonLabelInGroup(const AGroupName
       : string): string;
+  // New method to add a radio button with optional image
+
+ function AddRadioButtonFieldWithImage(
+    AHeaderInfo: THeaderInfo;
+    const AFieldName: string;
+    AValue: Boolean;
+    const AGroupName: string = 'DefaultRadioGroup';
+    const AImagePath: string = ''): TRadioButton;
+  // Method to update an image for an existing radio button
+  procedure SetRadioButtonImage(ARadioButton: TRadioButton; const AImagePath: string);
+
+  // Method to check if a file exists
+  function FilePathExists(const AFilePath: string): Boolean;
+
+
     // SVG ikonu ayarlamak için
     procedure SetHeaderSVG(AHeaderInfo: THeaderInfo; const ASVGData: string);
     function FindLabelTextForComponent(Component: TComponent): string;
@@ -126,6 +144,8 @@ type
     procedure CollapseAll;
     function GenerateComponentName(Component: TComponent;
       const BaseName: string; Index: Integer): string;
+   function SanitizeComponentName(const AName: string): string;
+
   published
     property OnHeaderClick: THeaderClickEvent read FOnHeaderClick
       write FOnHeaderClick;
@@ -181,6 +201,9 @@ destructor THeaderInfo.Destroy;
 begin
 
   FreeAndNil(ChildItems);
+ // Add this line to free the dictionary
+//  FreeAndNil(FRadioButtonImagePaths);
+
   inherited;
 end;
 
@@ -215,9 +238,14 @@ begin
 
   FEnableAutoSelect := True; // Varsayılan olarak otomatik seçim etkin
 
+  // Add this line to initialize the dictionary
+  FRadioButtonImagePaths := TDictionary<TRadioButton, string>.Create;
+
+
   // Loglama için varsayılan ayarlar
   FEnableLogging := False;
   FLogFilePath := ('ExpandableListView.log');
+
 
 end;
 
@@ -402,6 +430,13 @@ begin
   end;
 end;
 
+function TExpandableListView.FilePathExists(const AFilePath: string): Boolean;
+begin
+  Result := False;
+  if (AFilePath <> '') and FileExists(AFilePath) then
+    Result := True;
+end;
+
 function TExpandableListView.FindLabelTextForComponent
   (Component: TComponent): string;
 var
@@ -468,7 +503,8 @@ begin
     TypeName := TypeName.Substring(1);
 
   // Bileşen adını oluştur
-  Result := LowerCase(BaseName + '_' + TypeName + IntToStr(Index));
+  // turkçe karakterlri temizle
+  Result := SanitizeComponentName( LowerCase(BaseName + '_' + TypeName + IntToStr(Index)) );
 end;
 
 function TExpandableListView.GetSelectedRadioButtonInGroup(const AGroupName
@@ -840,6 +876,31 @@ begin
   end;
 end;
 
+// This function will help sanitize component names by replacing spaces with underscores
+function TExpandableListView.SanitizeComponentName(const AName: string): string;
+begin
+  // Replace spaces with underscores and remove any other invalid characters
+  Result  := Result.ToLower;
+  Result := StringReplace(AName, ' ', '_', [rfReplaceAll]);
+
+  // Remove other potentially problematic characters
+  Result := StringReplace(Result, '-', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '.', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, ',', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, ':', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, ';', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '/', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '\', '_', [rfReplaceAll]);
+  // Remove Turkish Cars potentially problematic characters
+
+  Result := StringReplace(Result, 'ğ', 'g', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ü.', 'u', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ş,', 's', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ı:', 'i', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ç', 'c', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ö', 'o', [rfReplaceAll]);
+ end;
+
 procedure TExpandableListView.SelectControl(AControl: TControl);
 begin
   if not FEnableAutoSelect then
@@ -891,6 +952,86 @@ const ASVGData: string);
 begin
   AHeaderInfo.SVGData := ASVGData;
   UpdateSVGIcon(AHeaderInfo);
+end;
+
+procedure TExpandableListView.SetRadioButtonImage(ARadioButton: TRadioButton; const AImagePath: string);
+var
+  ParentLayout: TLayout;
+  Image: TImage;
+  i: Integer;
+  ExistingImage: TImage;
+begin
+  if not Assigned(ARadioButton) then
+    Exit;
+
+  // Get the parent layout
+  if not (ARadioButton.Parent is TLayout) then
+    Exit;
+
+  ParentLayout := TLayout(ARadioButton.Parent);
+
+  // Remove any existing image
+  ExistingImage := nil;
+  for i := 0 to ParentLayout.ComponentCount - 1 do
+  begin
+    if (ParentLayout.Components[i] is TImage) and
+       (ParentLayout.Components[i].Name = 'img_' + ARadioButton.Name) then
+    begin
+      ExistingImage := TImage(ParentLayout.Components[i]);
+      Break;
+    end;
+  end;
+
+  // Update the image path in dictionary
+  if AImagePath <> '' then
+    FRadioButtonImagePaths.AddOrSetValue(ARadioButton, AImagePath)
+  else
+    FRadioButtonImagePaths.Remove(ARadioButton);
+
+  // If path is empty or file doesn't exist, remove existing image
+  if (AImagePath = '') or not FilePathExists(AImagePath) then
+  begin
+    if Assigned(ExistingImage) then
+      ExistingImage.Free;
+    Exit;
+  end;
+
+  // Create new or update existing image
+  if Assigned(ExistingImage) then
+  begin
+    // Update existing image
+    try
+      ExistingImage.Bitmap.LoadFromFile(AImagePath);
+    except
+      on E: Exception do
+      begin
+        DebugLog('Image update error: ' + E.Message + ' for path: ' + AImagePath);
+      end;
+    end;
+  end
+  else
+  begin
+    // Create new image
+    Image := TImage.Create(ParentLayout);
+    Image.Name := 'img_' + ARadioButton.Name;
+    Image.Align := TAlignLayout.Left;
+    Image.Width := 24;  // Default width
+    Image.Height := 24; // Default height
+    Image.Margins.Left := 10;
+    Image.WrapMode := TImageWrapMode.Fit;
+    Image.HitTest := False;
+
+    try
+      Image.Bitmap.LoadFromFile(AImagePath);
+      ParentLayout.AddObject(Image);
+    except
+      on E: Exception do
+      begin
+        Image.Free;
+        DebugLog('Image load error: ' + E.Message + ' for path: ' + AImagePath);
+      end;
+    end;
+  end;
 end;
 
 procedure TExpandableListView.AddDataField(AHeaderInfo: THeaderInfo;
@@ -1273,6 +1414,129 @@ begin
 
 end;
 
+function TExpandableListView.AddRadioButtonFieldWithImage(
+  AHeaderInfo: THeaderInfo;
+  const AFieldName: string;
+  AValue: Boolean;
+  const AGroupName: string = 'DefaultRadioGroup';
+  const AImagePath: string = ''): TRadioButton;
+var
+  DataItem: TListBoxItem;
+  Layout, RadioLayout: TLayout;
+  Rectangle: TRectangle;
+  lbl: TLabel;
+  RadioButton: TRadioButton;
+  HeaderIndex, LastChildIndex: Integer;
+  Image: TImage;
+begin
+  Result := nil;
+  try
+    // Başlık öğesinin indeksini bul
+    HeaderIndex := FindListBoxItemIndex(AHeaderInfo.HeaderItem);
+    if HeaderIndex < 0 then
+    begin
+      raise Exception.Create('Başlık öğesi bulunamadı!');
+      Exit;
+    end;
+
+    // Son alt öğe indeksini bul
+    LastChildIndex := HeaderIndex;
+    for var i := 0 to AHeaderInfo.ChildItems.Count - 1 do
+    begin
+      var idx := FindListBoxItemIndex(AHeaderInfo.ChildItems[i]);
+      if idx > LastChildIndex then
+        LastChildIndex := idx;
+    end;
+
+    // Yeni alt öğeyi oluştur
+    DataItem := TListBoxItem.Create(Self);
+    DataItem.Height := 0; // Başlangıçta 0 yükseklik
+    DataItem.Selectable := False;
+    DataItem.Text := '';
+    DataItem.Visible := False; // Başlangıçta gizli
+    DataItem.Opacity := 0; // Başlangıçta saydam
+
+    // Alt öğeyi doğru pozisyona ekle
+    InsertObject(LastChildIndex + 1, DataItem);
+
+    // HeaderInfo'nun ChildItems listesine ekle
+    AHeaderInfo.ChildItems.Add(DataItem);
+
+    // Arkaplan için ortak fonksiyonu kullan
+    Rectangle := CreateBackgroundRectangle(DataItem);
+
+    // Ana layout
+    Layout := TLayout.Create(DataItem);
+    Layout.Align := TAlignLayout.Client;
+    Layout.Padding.Rect := TRectF.Create(16, 4, 16, 4);
+    DataItem.AddObject(Layout);
+
+    // Etiket
+    lbl := CreateFieldLabel(Layout, AFieldName);
+
+    // Radio button layout - for button and image
+    RadioLayout := TLayout.Create(Layout);
+    RadioLayout.Align := TAlignLayout.Client;
+    RadioLayout.HitTest := False;
+    Layout.AddObject(RadioLayout);
+
+    // Radio button
+    RadioButton := TRadioButton.Create(RadioLayout);
+    RadioButton.Align := TAlignLayout.Left;
+    RadioButton.Width := 100;
+    RadioButton.GroupName := AGroupName;
+    RadioButton.IsChecked := AValue;
+    RadioButton.Text := '';
+    AddControlEventHandlers(RadioButton);
+    RadioLayout.AddObject(RadioButton);
+
+    // Store the image path if provided
+    if AImagePath <> '' then
+    begin
+      FRadioButtonImagePaths.AddOrSetValue(RadioButton, AImagePath);
+
+      // Create and set up image if path exists
+      if FilePathExists(AImagePath) then
+      begin
+        Image := TImage.Create(RadioLayout);
+        Image.Name := 'img_' + RadioButton.Name;
+        Image.Align := TAlignLayout.Left;
+        Image.Width := 24;  // Default width
+        Image.Height := 24; // Default height
+        Image.Margins.Left := 10;
+        Image.WrapMode := TImageWrapMode.Fit;
+        Image.HitTest := False;
+
+        try
+          Image.Bitmap.LoadFromFile(AImagePath);
+          RadioLayout.AddObject(Image);
+        except
+          on E: Exception do
+          begin
+            Image.Free;
+            DebugLog('Image load error: ' + E.Message + ' for path: ' + AImagePath);
+          end;
+        end;
+      end;
+    end;
+
+    Result := RadioButton;
+
+    // Eğer başlık açıksa, yeni eklenen öğeyi hemen göster
+    if AHeaderInfo.IsExpanded then
+    begin
+      DataItem.Visible := True;
+      DataItem.Opacity := 0;
+      DataItem.Height := 0;
+
+      TAnimator.AnimateFloat(DataItem, 'Height', FItemHeight, 0.3);
+      TAnimator.AnimateFloat(DataItem, 'Opacity', 1, 0.3);
+    end;
+  except
+    on E: Exception do
+      raise Exception.Create('AddRadioButtonFieldWithImage Error: ' + E.Message);
+  end;
+end;
 function TExpandableListView.AddCheckBoxField(AHeaderInfo: THeaderInfo;
 const AFieldName: string; AChecked: Boolean): TCheckBox;
 var
