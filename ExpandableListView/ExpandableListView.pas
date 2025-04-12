@@ -60,8 +60,6 @@ type
     FLabelTextColor: TAlphaColor;
     FEnableAutoSelect: Boolean; // Otomatik seçim parametresi
 
-    // New field to store image information for radio buttons
-    FRadioButtonImagePaths: TDictionary<TRadioButton, string>;
 
     procedure CreateHeaderSection(AHeaderInfo: THeaderInfo);
     procedure HeaderRectangleClick(Sender: TObject);
@@ -82,6 +80,8 @@ type
     procedure Loaded; override;
   public
     FHeaders: TList<THeaderInfo>;
+    // New field to store image information for radio buttons
+    FRadioButtonImagePaths: TDictionary<TRadioButton, string>;
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
