@@ -3,7 +3,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
   Top = 0
   Caption = 'ExpandableListView Test Application'
   ClientHeight = 700
-  ClientWidth = 1219
+  ClientWidth = 1220
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -12,28 +12,28 @@ object frmTestExpandableListView: TfrmTestExpandableListView
   DesignerMasterStyle = 0
   object lytMain: TLayout
     Align = Client
-    Size.Width = 968.000000000000000000
+    Size.Width = 850.000000000000000000
     Size.Height = 700.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
     object Rectangle1: TRectangle
       Align = Client
       Fill.Color = xFFF0F0F0
-      Size.Width = 968.000000000000000000
+      Size.Width = 850.000000000000000000
       Size.Height = 700.000000000000000000
       Size.PlatformDefault = False
       Stroke.Kind = None
       object pnlHeader: TRectangle
         Align = Top
         Fill.Color = xFF2196F3
-        Size.Width = 968.000000000000000000
+        Size.Width = 850.000000000000000000
         Size.Height = 50.000000000000000000
         Size.PlatformDefault = False
         Stroke.Kind = None
         object lblTitle: TLabel
           Align = Client
           StyledSettings = [Family, Style]
-          Size.Width = 890.000000000000000000
+          Size.Width = 772.000000000000000000
           Size.Height = 50.000000000000000000
           Size.PlatformDefault = False
           TextSettings.Font.Size = 20.000000000000000000
@@ -46,7 +46,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
           Align = Right
           StyledSettings = [Family]
           Margins.Right = 10.000000000000000000
-          Position.X = 890.000000000000000000
+          Position.X = 772.000000000000000000
           Size.Width = 68.000000000000000000
           Size.Height = 50.000000000000000000
           Size.PlatformDefault = False
@@ -60,23 +60,25 @@ object frmTestExpandableListView: TfrmTestExpandableListView
       end
       object tabcMain: TTabControl
         Align = Client
-        Size.Width = 968.000000000000000000
+        Size.Width = 850.000000000000000000
         Size.Height = 650.000000000000000000
         Size.PlatformDefault = False
-        TabIndex = 0
+        TabIndex = 2
         TabOrder = 1
         TabPosition = PlatformDefault
         Sizes = (
-          968s
+          850s
           624s
-          968s
+          850s
+          624s
+          850s
           624s)
         object tabDatabase: TTabItem
           CustomIcon = <
             item
             end>
           TextSettings.Trimming = None
-          IsSelected = True
+          IsSelected = False
           Size.Width = 70.000000000000000000
           Size.Height = 26.000000000000000000
           Size.PlatformDefault = False
@@ -93,7 +95,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
             Margins.Right = 10.000000000000000000
             Position.X = 10.000000000000000000
             Position.Y = 10.000000000000000000
-            Size.Width = 948.000000000000000000
+            Size.Width = 830.000000000000000000
             Size.Height = 80.000000000000000000
             Size.PlatformDefault = False
             Stroke.Color = xFFD0D0D0
@@ -105,7 +107,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
               TabOrder = 0
               Position.X = 16.000000000000000000
               Position.Y = 36.000000000000000000
-              Size.Width = 830.000000000000000000
+              Size.Width = 712.000000000000000000
               Size.Height = 28.000000000000000000
               Size.PlatformDefault = False
             end
@@ -120,7 +122,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
             end
             object btnBrowseDB: TButton
               Anchors = [akTop, akRight]
-              Position.X = 854.000000000000000000
+              Position.X = 736.000000000000000000
               Position.Y = 36.000000000000000000
               Size.Width = 80.000000000000000000
               Size.Height = 28.000000000000000000
@@ -139,7 +141,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
             Margins.Right = 10.000000000000000000
             Position.X = 10.000000000000000000
             Position.Y = 100.000000000000000000
-            Size.Width = 948.000000000000000000
+            Size.Width = 830.000000000000000000
             Size.Height = 120.000000000000000000
             Size.PlatformDefault = False
             Stroke.Color = xFFD0D0D0
@@ -170,6 +172,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
             object edtListViewName: TEdit
               Touch.InteractiveGestures = [LongTap, DoubleTap]
               TabOrder = 2
+              Text = 'menuprojectsettings'
               Position.X = 128.000000000000000000
               Position.Y = 14.000000000000000000
               Size.Width = 282.000000000000000000
@@ -231,11 +234,11 @@ object frmTestExpandableListView: TfrmTestExpandableListView
             Margins.Right = 10.000000000000000000
             Margins.Bottom = 10.000000000000000000
             Position.Y = 460.000000000000000000
-            Size.Width = 958.000000000000000000
+            Size.Width = 840.000000000000000000
             Size.Height = 154.000000000000000000
             Size.PlatformDefault = False
             TabOrder = 2
-            Viewport.Width = 954.000000000000000000
+            Viewport.Width = 836.000000000000000000
             Viewport.Height = 150.000000000000000000
           end
           object lblLog: TLabel
@@ -245,7 +248,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
             Margins.Right = 10.000000000000000000
             Position.X = 610.000000000000000000
             Position.Y = 430.000000000000000000
-            Size.Width = 348.000000000000000000
+            Size.Width = 230.000000000000000000
             Size.Height = 20.000000000000000000
             Size.PlatformDefault = False
             Text = 'Log Output:'
@@ -274,7 +277,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
             Margins.Right = 10.000000000000000000
             Position.X = 10.000000000000000000
             Position.Y = 10.000000000000000000
-            Size.Width = 948.000000000000000000
+            Size.Width = 830.000000000000000000
             Size.Height = 60.000000000000000000
             Size.PlatformDefault = False
             Stroke.Color = xFFD0D0D0
@@ -335,12 +338,216 @@ object frmTestExpandableListView: TfrmTestExpandableListView
             Margins.Top = 10.000000000000000000
             Margins.Right = 10.000000000000000000
             Margins.Bottom = 10.000000000000000000
-            Size.Width = 948.000000000000000000
+            Size.Width = 830.000000000000000000
             Size.Height = 534.000000000000000000
             Size.PlatformDefault = False
             TabOrder = 1
-            Viewport.Width = 944.000000000000000000
+            Viewport.Width = 826.000000000000000000
             Viewport.Height = 530.000000000000000000
+          end
+        end
+        object tabComponents: TTabItem
+          CustomIcon = <
+            item
+            end>
+          TextSettings.Trimming = None
+          IsSelected = True
+          Size.Width = 88.000000000000000000
+          Size.Height = 26.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Components'
+          ExplicitSize.cx = 86.000000000000000000
+          ExplicitSize.cy = 26.000000000000000000
+          object Rectangle2: TRectangle
+            Align = Client
+            Fill.Color = xFFF0F0F0
+            Margins.Left = 10.000000000000000000
+            Margins.Top = 10.000000000000000000
+            Margins.Right = 10.000000000000000000
+            Margins.Bottom = 10.000000000000000000
+            Size.Width = 830.000000000000000000
+            Size.Height = 604.000000000000000000
+            Size.PlatformDefault = False
+            Stroke.Kind = None
+            object pnlComponentsOps: TRectangle
+              Align = Top
+              Fill.Color = claWhite
+              Size.Width = 830.000000000000000000
+              Size.Height = 230.000000000000000000
+              Size.PlatformDefault = False
+              Stroke.Color = xFFD0D0D0
+              XRadius = 4.000000000000000000
+              YRadius = 4.000000000000000000
+              object pnlHeaderSelection: TRectangle
+                Align = Top
+                Fill.Color = claWhite
+                Size.Width = 830.000000000000000000
+                Size.Height = 60.000000000000000000
+                Size.PlatformDefault = False
+                Stroke.Kind = None
+                object lblSelectHeader: TLabel
+                  Position.X = 16.000000000000000000
+                  Position.Y = 20.000000000000000000
+                  Size.Width = 121.000000000000000000
+                  Size.Height = 25.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Select Header:'
+                  TabOrder = 0
+                end
+                object cmbHeaders: TComboBox
+                  Position.X = 152.000000000000000000
+                  Position.Y = 16.000000000000000000
+                  Size.Width = 385.000000000000000000
+                  Size.Height = 32.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                end
+                object btnRefreshHeaders: TButton
+                  Position.X = 552.000000000000000000
+                  Position.Y = 16.000000000000000000
+                  Size.Width = 112.000000000000000000
+                  Size.Height = 32.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 2
+                  Text = 'Refresh Headers'
+                  TextSettings.Trimming = None
+                  OnClick = btnRefreshHeadersClick
+                end
+                object lblHeaderInfo: TLabel
+                  Position.X = 680.000000000000000000
+                  Position.Y = 20.000000000000000000
+                  Size.Width = 257.000000000000000000
+                  Size.Height = 25.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Add components to the selected header'
+                  TabOrder = 3
+                end
+              end
+              object pnlComponentButtons: TRectangle
+                Align = Client
+                Fill.Color = claWhite
+                Size.Width = 830.000000000000000000
+                Size.Height = 170.000000000000000000
+                Size.PlatformDefault = False
+                Stroke.Kind = None
+                object btnAddHeader: TButton
+                  Position.X = 16.000000000000000000
+                  Position.Y = 16.000000000000000000
+                  Size.Width = 250.000000000000000000
+                  Size.Height = 35.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 0
+                  Text = 'Add Header'
+                  TextSettings.Trimming = None
+                  OnClick = btnAddHeaderClick
+                end
+                object btnAddEditField: TButton
+                  Position.X = 16.000000000000000000
+                  Position.Y = 64.000000000000000000
+                  Size.Width = 250.000000000000000000
+                  Size.Height = 35.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  Text = 'Add Edit Field'
+                  TextSettings.Trimming = None
+                  OnClick = btnAddEditFieldClick
+                end
+                object btnAddNumberField: TButton
+                  Position.X = 16.000000000000000000
+                  Position.Y = 107.000000000000000000
+                  Size.Width = 250.000000000000000000
+                  Size.Height = 35.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 2
+                  Text = 'Add Number Field'
+                  TextSettings.Trimming = None
+                  OnClick = btnAddNumberFieldClick
+                end
+                object btnAddCheckBox: TButton
+                  Position.X = 336.000000000000000000
+                  Position.Y = 21.000000000000000000
+                  Size.Width = 250.000000000000000000
+                  Size.Height = 35.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 3
+                  Text = 'Add CheckBox'
+                  TextSettings.Trimming = None
+                  OnClick = btnAddCheckBoxClick
+                end
+                object btnAddComboBox: TButton
+                  Position.X = 336.000000000000000000
+                  Position.Y = 64.000000000000000000
+                  Size.Width = 250.000000000000000000
+                  Size.Height = 35.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 4
+                  Text = 'Add ComboBox'
+                  TextSettings.Trimming = None
+                  OnClick = btnAddComboBoxClick
+                end
+                object btnAddColorBox: TButton
+                  Position.X = 336.000000000000000000
+                  Position.Y = 107.000000000000000000
+                  Size.Width = 250.000000000000000000
+                  Size.Height = 35.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 5
+                  Text = 'Add ColorBox'
+                  TextSettings.Trimming = None
+                  OnClick = btnAddColorBoxClick
+                end
+                object btnAddRadioButton: TButton
+                  Position.X = 656.000000000000000000
+                  Position.Y = 16.000000000000000000
+                  Size.Width = 250.000000000000000000
+                  Size.Height = 35.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 7
+                  Text = 'Add RadioButton'
+                  TextSettings.Trimming = None
+                  OnClick = btnAddRadioButtonClick
+                end
+                object btnAddMemo: TButton
+                  Position.X = 656.000000000000000000
+                  Position.Y = 64.000000000000000000
+                  Size.Width = 250.000000000000000000
+                  Size.Height = 35.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 6
+                  Text = 'Add Memo '
+                  TextSettings.Trimming = None
+                  OnClick = btnAddMemoClick
+                end
+              end
+            end
+            object memComponentLog: TMemo
+              Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+              DataDetectorTypes = []
+              ReadOnly = True
+              StyledSettings = [Family, Style, FontColor]
+              TextSettings.Font.Size = 11.000000000000000000
+              Align = Bottom
+              Margins.Top = 10.000000000000000000
+              Margins.Bottom = 10.000000000000000000
+              Position.Y = 444.000000000000000000
+              Size.Width = 830.000000000000000000
+              Size.Height = 150.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Viewport.Width = 826.000000000000000000
+              Viewport.Height = 146.000000000000000000
+            end
+            object lblComponentLog: TLabel
+              Align = Bottom
+              Position.Y = 414.000000000000000000
+              Size.Width = 830.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Component Log:'
+              TabOrder = 2
+            end
           end
         end
       end
@@ -366,7 +573,7 @@ object frmTestExpandableListView: TfrmTestExpandableListView
     Margins.Bottom = 10.000000000000000000
     Position.X = 10.000000000000000000
     Position.Y = 10.000000000000000000
-    Size.Width = 231.000000000000000000
+    Size.Width = 350.000000000000000000
     Size.Height = 680.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 2
