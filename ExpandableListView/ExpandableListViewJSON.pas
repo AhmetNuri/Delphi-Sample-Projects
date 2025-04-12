@@ -134,8 +134,21 @@ begin
     end
     else if Component is TMemo then
     begin
+      // TMemo için düzgün işleme
       ValueObj.AddPair('ValueType', TJSONString.Create('Memo'));
       ValueObj.AddPair('Value', TJSONString.Create(TMemo(Component).Text));
+      ValueObj.AddPair('Height', TJSONNumber.Create(TMemo(Component).Height));
+
+      // Opsiyonel: Bazı ek TMemo özelliklerini ekleyelim
+//      var Memo := TMemo(Component);
+
+      // Opsiyonel: ReadOnly özelliğini ekle
+//      ValueObj.AddPair('ReadOnly', TJSONBool.Create(Memo.ReadOnly));
+
+      // Opsiyonel: WordWrap özelliğini ekle
+//      ValueObj.AddPair('WordWrap', TJSONBool.Create(Memo.WordWrap));
+//
+//      DebugLog('TMemo processed: ' + LabelText + ', Value length: ' + IntToStr(Length(Memo.Text)));
     end
     else if Component is TNumberBox then
     begin
@@ -409,6 +422,13 @@ begin
   HeadersArray := TJSONArray.Create;
 
   try
+    // Metadata bilgisi ekle
+    var MetadataObj := TJSONObject.Create;
+    MetadataObj.AddPair('CreatedAt', TJSONString.Create(FormatDateTime('yyyy-mm-dd hh:nn:ss', Now)));
+    MetadataObj.AddPair('CreatedBy', TJSONString.Create('AhmetNuri'));
+    MetadataObj.AddPair('Version', TJSONString.Create('1.1')); // TMemo desteği ile sürümü 1.1 yapıldı
+    RootObj.AddPair('Metadata', MetadataObj);
+
     // Her bir başlık için JSON nesnesi oluştur
     for i := 0 to FExpandableListView.FHeaders.Count - 1 do
     begin
@@ -422,8 +442,7 @@ begin
     // JSON string'ini oluştur
     Result := RootObj.ToString;
   finally
-  //  HeadersArray.Free;
-   FreeAndNil(RootObj) ;
+    FreeAndNil(RootObj);
   end;
 end;
 
@@ -447,7 +466,7 @@ begin
     var MetadataObj := TJSONObject.Create;
     MetadataObj.AddPair('CreatedAt', TJSONString.Create(FormatDateTime('yyyy-mm-dd hh:nn:ss', Now)));
     MetadataObj.AddPair('CreatedBy', TJSONString.Create('AhmetNuri'));
-    MetadataObj.AddPair('Version', TJSONString.Create('1.0'));
+    MetadataObj.AddPair('Version', TJSONString.Create('1.1')); // TMemo desteği ile sürümü 1.1 yapıldı
     RootObj.AddPair('Metadata', MetadataObj);
 
     try
@@ -492,6 +511,28 @@ begin
 
                   if FieldName <> '' then
                   begin
+                    var FieldObj := TJSONObject.Create;
+
+                    // TMemo için özel işlem
+                    if Component is TMemo then
+                    begin
+                      var MemoField := TMemo(Component);
+                      FieldObj.AddPair('UIType', TJSONString.Create('TMemo'));
+                      FieldObj.AddPair('ValueType', TJSONString.Create('Memo'));
+                      FieldObj.AddPair('Value', TJSONString.Create(MemoField.Text));
+                      FieldObj.AddPair('Height', TJSONNumber.Create(MemoField.Height));
+                      FieldObj.AddPair('labelText', TJSONString.Create(FieldName));
+
+                      // Alan nesnesini Fields nesnesine ekle
+                      FieldsObj.AddPair(FieldName, FieldObj);
+
+                      // TMemo için debug log ekle
+                      DebugLog('TMemo processed in ExportValuesToJSON: ' + FieldName);
+
+                      // TMemo işlendikten sonra döngünün geri kalanını atla
+                      continue;
+                    end;
+
                     // Kontrol tipine göre değeri al
                     if Component is TEdit then
                       FieldValue := TEdit(Component).Text
@@ -517,8 +558,6 @@ begin
                       FieldValue := BoolToStr(RadioBtn.IsChecked, True);
 
                       // Her bir alan için ayrı bir JSON nesnesi oluştur
-                      var FieldObj := TJSONObject.Create;
-
                       if RadioBtn.IsChecked then
                       begin
                         FieldObj.AddPair('UIType', TJSONString.Create('TRadioButton'));
@@ -536,9 +575,6 @@ begin
                     end
                     else
                       continue; // Desteklenmeyen kontrol tiplerini atla
-
-                    // Her bir alan için ayrı bir JSON nesnesi oluştur
-                    var FieldObj := TJSONObject.Create;
 
                     // Kontrol tipine göre UIType ve ValueType ayarla
                     if Component is TEdit then
@@ -632,7 +668,7 @@ begin
       Result := RootObj.ToString;
     finally
       // Sadece RootObj'yi serbest bırak, alt nesneler otomatik olarak serbest bırakılır
-      FreeAndNil(RootObj) ;
+      FreeAndNil(RootObj);
     end;
   except
     on E: Exception do
@@ -681,6 +717,35 @@ begin
 
     end;
   end;
+
+  // Eğer etiket bulunamadıysa ve bu bir TMemo ise, başka bir strateji dene
+  if (Result = '') and (Component is TMemo) then
+  begin
+    // TMemo için, etiketin herhangi bir konumda olabileceğini düşünerek tüm etiketleri tara
+    for i := 0 to TLayout(ParentComponent).ComponentCount - 1 do
+    begin
+      if TLayout(ParentComponent).Components[i] is TLabel then
+      begin
+        Label1 := TLabel(TLayout(ParentComponent).Components[i]);
+
+        // Sadece tek bir label varsa, onu kullan
+        if Result = '' then
+          Result := Label1.Text;
+
+        // Debug log - yardımcı olması için
+        DebugLog('Possible label for TMemo: ' + Label1.Text +
+                 ' at X:' + FloatToStr(Label1.Position.X) +
+                 ' Y:' + FloatToStr(Label1.Position.Y));
+      end;
+    end;
+
+    // Debug log
+    if Result <> '' then
+      DebugLog('Selected label for TMemo: ' + Result)
+    else
+      DebugLog('No label found for TMemo at position X:' +
+               FloatToStr(Control.Position.X) + ' Y:' + FloatToStr(Control.Position.Y));
+  end;
 end;
 
 
@@ -689,6 +754,7 @@ function TExpandableListViewJSONHelper.GenerateComponentName(Component: TCompone
 var
   TypeName: string;
 begin
+
   // Bileşen tipini al
   TypeName := Component.ClassName;
   if TypeName.StartsWith('T') then
@@ -852,6 +918,26 @@ begin
             FExpandableListView.AddCheckBoxField(HeaderInfo, FieldName, BoolValue);
           end;
         end
+  else if (UIType = 'TMemo') or (LowerCase(ValueType) = 'memo') then
+  begin
+    // Memo alanı için
+    var StrValue := '';
+    var MemoHeight: Single := 80; // Varsayılan yükseklik
+
+    if ActualValue is TJSONString then
+      StrValue := (ActualValue as TJSONString).Value;
+
+    // Yükseklik bilgisi varsa al
+    if ValueObj.GetValue('Height') <> nil then
+      MemoHeight := (ValueObj.GetValue('Height') as TJSONNumber).AsDouble;
+
+    if LabelText <> '' then
+      FieldName := LabelText;
+
+    FExpandableListView.AddMemoField(HeaderInfo, FieldName, StrValue, MemoHeight);
+  end
+
+
         else if ValueObj.GetValue('Items') <> nil then
         begin
           // ComboBox için
