@@ -1,4 +1,4 @@
- unit ExpandableListView;
+   unit ExpandableListView;
 
 interface
 
@@ -146,10 +146,10 @@ type
     property ItemBorderColor: TAlphaColor read FItemBorderColor
       write FItemBorderColor default $FFE0E0E0;
 // Published bölümüne eklenecek özellikler
-    property LabelWidth: Single read FLabelWidth write FLabelWidth ;
+    property LabelWidth: Single read FLabelWidth write FLabelWidth    ;
     property LabelFontSize: Single read FLabelFontSize write FLabelFontSize   ;
     property LabelFontFamily: string read FLabelFontFamily write FLabelFontFamily;
-    property LabelTextColor: TAlphaColor read FLabelTextColor write FLabelTextColor  ;
+    property LabelTextColor: TAlphaColor read FLabelTextColor write FLabelTextColor default TAlphaColorRec.White  ;
 
   end;
 
