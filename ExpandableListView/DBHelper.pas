@@ -294,10 +294,6 @@ begin
   end;
 end;
 
-
-
-
-
 function TDBHelper.GetFieldDataType(const AFieldDataType: string): string;
 begin
   // Veri tipi için standart dönüşüm
@@ -320,6 +316,8 @@ begin
   else if AFieldType = 'combobox' then Result := 'combobox'
   else if AFieldType = 'colorbox' then Result := 'colorbox'
   else if AFieldType = 'radiobutton' then Result := 'radiobutton'
+  else if AFieldType = 'memo' then Result := 'memo' // TMemo için tip ekledik
+
   else Result := 'edit'; // Varsayılan
 end;
 
@@ -449,7 +447,8 @@ begin
             else if FieldTypeStr = 'radiobutton'.ToLower then UITypeStr := 'TRadioButton'
             else if FieldTypeStr = 'switch'.ToLower then UITypeStr := 'TSwitch'
             else if FieldTypeStr = 'combobox'.ToLower then UITypeStr := 'TComboBox'
-            else if FieldTypeStr = 'colorbox'.ToLower then UITypeStr := 'TColorComboBox';
+            else if FieldTypeStr = 'colorbox'.ToLower then UITypeStr := 'TColorComboBox'
+            else if FieldTypeStr = 'memo'.ToLower then UITypeStr := 'TMemo';
 
             // Special case for ComboBox detection based on DataType
             if DataTypeStr = 'combobox' then UITypeStr := 'TComboBox';
@@ -878,7 +877,8 @@ begin
               else if UIType = 'TRadioButton' then FieldType := 'radiobutton'
               else if UIType = 'TSwitch' then FieldType := 'switch'
               else if UIType = 'TComboBox' then FieldType := 'combobox'
-              else if UIType = 'TColorComboBox' then FieldType := 'colorbox';
+              else if UIType = 'TColorComboBox' then FieldType := 'colorbox'
+               else if UIType = 'TMemo' then FieldType := 'memo'; // TMemo için FieldType ekledik
 
               // Map ValueType to FieldDataType
               var FieldDataType := 'string'; // Default
@@ -886,7 +886,8 @@ begin
               else if ValueType = 'Float' then FieldDataType := 'float'
               else if ValueType = 'Boolean' then FieldDataType := 'boolean'
               else if ValueType = 'ComboBox' then FieldDataType := 'ComboBox'
-              else if ValueType = 'Color' then FieldDataType := 'Color';
+              else if ValueType = 'Color' then FieldDataType := 'Color'
+              else if ValueType = 'Memo' then FieldDataType := 'memo'; // TMemo için FieldDataType ekledik
 
               // Get Value based on type
               var FieldValue := '';
