@@ -27,7 +27,7 @@ type
     procedure SetupLogOptions;
 
   public
-   FConnection: TFDConnection;
+    FConnection: TFDConnection;
     constructor Create(AOwner: TComponent);
     destructor Destroy; override;
 
@@ -58,6 +58,8 @@ type
       ASelectedColor: TAlphaColor = TAlphaColorRec.Blue): TColorComboBox;
     function AddRadioButtonField(AHeaderInfo: THeaderInfo; const AFieldName: string;
       AValue: Boolean; const AGroupName: string = 'DefaultRadioGroup'): TRadioButton;
+    function  AddMemoField(AHeaderInfo: THeaderInfo;   const AFieldName: string; const AValue: string = ''; AHeight: Single = 80): TMemo;
+
 
     // Header işlemleri
     procedure SetHeaderSVG(AHeaderInfo: THeaderInfo; const ASVGData: string);
@@ -273,6 +275,13 @@ function TExpandableListViewManager.AddHeader(const ATitle: string; AImageIndex:
   AColor: TAlphaColor): THeaderInfo;
 begin
   Result := FExpandableListView.AddHeader(ATitle, AImageIndex, AColor);
+end;
+
+function TExpandableListViewManager.AddMemoField(AHeaderInfo: THeaderInfo;
+  const AFieldName, AValue: string; AHeight: Single): TMemo;
+begin
+  Result := ExpandableListView.AddMemoField(AHeaderInfo, AFieldName, AValue, AHeight);
+
 end;
 
 function TExpandableListViewManager.AddEditField(AHeaderInfo: THeaderInfo;
