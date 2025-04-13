@@ -1,4 +1,4 @@
- unit ExpandableListView;
+unit ExpandableListView;
 
 interface
 
@@ -126,6 +126,8 @@ type
     procedure CollapseAll;
     function GenerateComponentName(Component: TComponent;
       const BaseName: string; Index: Integer): string;
+function SanitizeComponentName(const AName: string): string;
+
   published
     property OnHeaderClick: THeaderClickEvent read FOnHeaderClick
       write FOnHeaderClick;
@@ -464,7 +466,7 @@ begin
     TypeName := TypeName.Substring(1);
 
   // Bileşen adını oluştur
-  Result := LowerCase(BaseName + '_' + TypeName + IntToStr(Index));
+  Result := SanitizeComponentName( LowerCase(BaseName + '_' + TypeName + IntToStr(Index)) );
 end;
 
 function TExpandableListView.GetSelectedRadioButtonInGroup(const AGroupName
@@ -834,6 +836,31 @@ begin
   begin
     AHeaderInfo.SVGIcon.Svg.Source := AHeaderInfo.SVGData;
   end;
+end;
+
+function TExpandableListView.SanitizeComponentName(const AName: string): string;
+begin
+  // Replace spaces with underscores and remove any other invalid characters
+  Result  := Result.ToLower;
+  Result := StringReplace(AName, ' ', '_', [rfReplaceAll]);
+
+  // Remove other potentially problematic characters
+  Result := StringReplace(Result, '-', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '.', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, ',', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, ':', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, ';', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '/', '_', [rfReplaceAll]);
+  Result := StringReplace(Result, '\', '_', [rfReplaceAll]);
+  // Remove Turkish Cars potentially problematic characters
+
+  Result := StringReplace(Result, 'ğ', 'g', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ü.', 'u', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ş,', 's', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ı:', 'i', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ç', 'c', [rfReplaceAll]);
+  Result := StringReplace(Result, 'ö', 'o', [rfReplaceAll]);
+
 end;
 
 procedure TExpandableListView.SelectControl(AControl: TControl);
