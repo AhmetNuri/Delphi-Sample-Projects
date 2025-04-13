@@ -1,4 +1,4 @@
- unit ExpandableListViewJSON;
+  unit ExpandableListViewJSON;
 
 interface
 
@@ -86,7 +86,7 @@ end;
 
 
 // Bileşen için değer nesnesi oluşturan fonksiyon
-function TExpandableListViewJSONHelper.CreateValueObjectForComponent(Component: TComponent): TJSONObject;
+function TExpandableListViewJSONHelper.CreateValueObjectForComponent (Component: TComponent): TJSONObject;
 var
   ValueObj: TJSONObject;
   Items: TJSONArray;
@@ -94,8 +94,6 @@ var
   UIType: string;
   LabelText: string;
   Control: TControl;
-  RadioButton: TRadioButton;
-  ImagePath: string;
 begin
   ValueObj := TJSONObject.Create;
 
@@ -140,6 +138,17 @@ begin
       ValueObj.AddPair('ValueType', TJSONString.Create('Memo'));
       ValueObj.AddPair('Value', TJSONString.Create(TMemo(Component).Text));
       ValueObj.AddPair('Height', TJSONNumber.Create(TMemo(Component).Height));
+
+      // Opsiyonel: Bazı ek TMemo özelliklerini ekleyelim
+//      var Memo := TMemo(Component);
+
+      // Opsiyonel: ReadOnly özelliğini ekle
+//      ValueObj.AddPair('ReadOnly', TJSONBool.Create(Memo.ReadOnly));
+
+      // Opsiyonel: WordWrap özelliğini ekle
+//      ValueObj.AddPair('WordWrap', TJSONBool.Create(Memo.WordWrap));
+//
+//      DebugLog('TMemo processed: ' + LabelText + ', Value length: ' + IntToStr(Length(Memo.Text)));
     end
     else if Component is TNumberBox then
     begin
@@ -210,6 +219,9 @@ begin
 
       ValueObj.AddPair('ValueType', TJSONString.Create('Date'));
       ValueObj.AddPair('Value', TJSONString.Create(DateToStr(DateEdit.Date)));
+
+      // Tarih formatını ekle
+      // ValueObj.AddPair('Format',  DateToStr(.Create(DateEdit.Date)));
     end
     else if Component is TTimeEdit then
     begin
@@ -218,22 +230,28 @@ begin
 
       ValueObj.AddPair('ValueType', TJSONString.Create('Time'));
       ValueObj.AddPair('Value', TJSONString.Create(TimeToStr(TimeEdit.Time)));
+
+      // Zaman formatını ekle
+      // ValueObj.AddPair('Format', TJSONString.Create(TimeEdit.FormatSettings.ShortTimeFormat));
     end
+    // else if Component is TSpinBox then
+    // begin
+    // var SpinBox := TSpinBox(Component);
+    //
+    // ValueObj.AddPair('ValueType', TJSONString.Create('Integer'));
+    // ValueObj.AddPair('Value', TJSONNumber.Create(SpinBox.Value));
+    // ValueObj.AddPair('Min', TJSONNumber.Create(SpinBox.Min));
+    // ValueObj.AddPair('Max', TJSONNumber.Create(SpinBox.Max));
+    // ValueObj.AddPair('Increment', TJSONNumber.Create(SpinBox.Increment));
+    // end
     else if Component is TRadioButton then
     begin
+      var
       RadioButton := TRadioButton(Component);
-      ValueObj.AddPair('UIType', TJSONString.Create('TRadioButton'));
+      ValueObj.AddPair('UIType', 'TRadioButton');
       ValueObj.AddPair('Value', TJSONBool.Create(RadioButton.IsChecked));
-      // GroupName bilgisini sakla
-      ValueObj.AddPair('GroupName', TJSONString.Create(RadioButton.GroupName));
-
-      // RadioButton için resim yolunu kontrol et ve ekle
-      if Assigned(FExpandableListView.FRadioButtonImagePaths) and
-         FExpandableListView.FRadioButtonImagePaths.TryGetValue(RadioButton, ImagePath) then
-      begin
-        if ImagePath <> '' then
-          ValueObj.AddPair('ImagePath', TJSONString.Create(ImagePath));
-      end;
+      // GroupName bilgisini de sakla
+      ValueObj.AddPair('GroupName', RadioButton.GroupName);
     end
     else if Component is TListBox then
     begin
@@ -272,7 +290,6 @@ begin
     end;
   end;
 end;
-
 
 
 procedure TExpandableListViewJSONHelper.DebugLog(const AMessage: string);
@@ -535,37 +552,28 @@ begin
                     end
                     else if Component is TColorComboBox then
                       FieldValue := ColorToString(TColorComboBox(Component).Color)
-else if Component is TRadioButton then
-begin
-  var RadioBtn := TRadioButton(Component);
-  FieldValue := BoolToStr(RadioBtn.IsChecked, True);
+                    else if Component is TRadioButton then
+                    begin
+                      var RadioBtn := TRadioButton(Component);
+                      FieldValue := BoolToStr(RadioBtn.IsChecked, True);
 
-  // Her bir alan için ayrı bir JSON nesnesi oluştur
-  if RadioBtn.IsChecked then
-  begin
-    FieldObj.AddPair('UIType', TJSONString.Create('TRadioButton'));
-    FieldObj.AddPair('Value', TJSONBool.Create(True));
-    FieldObj.AddPair('GroupName', TJSONString.Create(RadioBtn.GroupName));
-    FieldObj.AddPair('labelText', TJSONString.Create(FieldName));
-    FieldObj.AddPair('ValueType', TJSONString.Create('Boolean'));
+                      // Her bir alan için ayrı bir JSON nesnesi oluştur
+                      if RadioBtn.IsChecked then
+                      begin
+                        FieldObj.AddPair('UIType', TJSONString.Create('TRadioButton'));
+                        FieldObj.AddPair('Value', TJSONBool.Create(True));
+                        FieldObj.AddPair('GroupName', TJSONString.Create(RadioBtn.GroupName));
+                        FieldObj.AddPair('labelText', TJSONString.Create(FieldName));
+                        FieldObj.AddPair('ValueType', TJSONString.Create('Boolean'));
 
-    // Resim yolunu kontrol et
-    var ImagePath: string;
-    if Assigned(FExpandableListView.FRadioButtonImagePaths) and
-       FExpandableListView.FRadioButtonImagePaths.TryGetValue(RadioBtn, ImagePath) then
-    begin
-      if ImagePath <> '' then
-        FieldObj.AddPair('ImagePath', TJSONString.Create(ImagePath));
-    end;
+                        // Alan nesnesini Fields nesnesine ekle
+                        FieldsObj.AddPair(FieldName, FieldObj);
+                      end;
 
-    // Alan nesnesini Fields nesnesine ekle
-    FieldsObj.AddPair(FieldName, FieldObj);
-  end;
-
-  // RadioButton için özel işlem yaptıysak, döngünün geri kalanını atla
-  continue;
-end
-                   else
+                      // RadioButton için özel işlem yaptıysak, döngünün geri kalanını atla
+                      continue;
+                    end
+                    else
                       continue; // Desteklenmeyen kontrol tiplerini atla
 
                     // Kontrol tipine göre UIType ve ValueType ayarla
@@ -746,7 +754,6 @@ function TExpandableListViewJSONHelper.GenerateComponentName(Component: TCompone
 var
   TypeName: string;
 begin
-
   // Bileşen tipini al
   TypeName := Component.ClassName;
   if TypeName.StartsWith('T') then
@@ -874,35 +881,29 @@ begin
         ActualValue := ValueObj.GetValue('Value');
 
         // UIType'a göre uygun kontrol ekleme kararı ver
- if UIType = 'TRadioButton' then
-begin
-  // RadioButton için
-  if ActualValue is TJSONBool then
-  begin
-    var BoolValue := (ActualValue as TJSONBool).AsBoolean;
-    if LabelText <> '' then
-      FieldName := LabelText;
+        if UIType = 'TRadioButton' then
+        begin
+          // RadioButton için
+          if ActualValue is TJSONBool then
+          begin
+            var
+            BoolValue := (ActualValue as TJSONBool).AsBoolean;
+            if LabelText <> '' then
+              FieldName := LabelText;
 
-    DebugLog('RadioButton oluşturuluyor: ' + FieldName);
-    // GroupName'i al veya varsayılan değeri kullan
-    var RadioGroupName := 'DefaultRadioGroup';
-    if GroupName <> '' then
-      RadioGroupName := GroupName;
+            DebugLog('RadioButton oluşturuluyor: ' + FieldName);
+            // GroupName'i al veya varsayılan değeri kullan
+            var
+            RadioGroupName := 'DefaultRadioGroup';
+            if GroupName <> '' then
+              RadioGroupName := GroupName;
 
-    // Resim yolu kontrolü
-    var ImagePath: string := '';
-    if ValueObj.GetValue('ImagePath') <> nil then
-      ImagePath := ValueObj.GetValue('ImagePath').Value;
+            var
+            RadioBtn := FExpandableListView.AddRadioButtonField(HeaderInfo, FieldName, BoolValue,
+              RadioGroupName);
 
-    // Resim yolu varsa, resimli RadioButton ekle
-    var RadioBtn: TRadioButton;
-    if ImagePath <> '' then
-      RadioBtn := FExpandableListView.AddRadioButtonFieldWithImage(HeaderInfo, FieldName, BoolValue, RadioGroupName, ImagePath)
-    else
-      RadioBtn := FExpandableListView.AddRadioButtonField(HeaderInfo, FieldName, BoolValue, RadioGroupName);
-  end;
-end
-
+          end;
+        end
         else if UIType = 'TCheckBox' then
         begin
           // CheckBox için
