@@ -1,0 +1,409 @@
+object formVerticalPartSquareStoneSettingGCodeGenerator: TformVerticalPartSquareStoneSettingGCodeGenerator
+  Left = 0
+  Top = 0
+  BorderIcons = [biSystemMenu]
+  BorderStyle = Single
+  Caption = 'Vertical Part Square Stone Setting GCode Generator'
+  ClientHeight = 456
+  ClientWidth = 564
+  Position = DesktopCenter
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnClose = FormClose
+  DesignerMasterStyle = 0
+  object Label1: TLabel
+    Position.X = 24.000000000000000000
+    Position.Y = 16.000000000000000000
+    Text = 'Radius of Part'
+    TabOrder = 47
+  end
+  object edtRadiusOfPart: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 48
+    Cursor = crIBeam
+    Value = 12.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 24.000000000000000000
+    Position.Y = 41.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label2: TLabel
+    Position.X = 152.000000000000000000
+    Position.Y = 16.000000000000000000
+    Text = 'Radius of Projection'
+    TabOrder = 33
+  end
+  object edtRadiusOfProjection: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 34
+    Cursor = crIBeam
+    Min = -100.000000000000000000
+    Value = 8.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 152.000000000000000000
+    Position.Y = 41.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label3: TLabel
+    Position.X = 288.000000000000000000
+    Position.Y = 16.000000000000000000
+    Text = 'Start X'
+    TabOrder = 43
+  end
+  object edtStartX: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 46
+    Cursor = crIBeam
+    Min = -100.000000000000000000
+    Value = -4.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 288.000000000000000000
+    Position.Y = 41.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label4: TLabel
+    Position.X = 416.000000000000000000
+    Position.Y = 16.000000000000000000
+    Text = 'End X'
+    TabOrder = 29
+  end
+  object edtEndX: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 32
+    Cursor = crIBeam
+    Min = -100.000000000000000000
+    Value = 4.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 416.000000000000000000
+    Position.Y = 41.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label5: TLabel
+    Position.X = 24.000000000000000000
+    Position.Y = 88.000000000000000000
+    Text = 'Min Angle of Touch'
+    TabOrder = 35
+  end
+  object edtMinAngleOfTouch: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 38
+    Cursor = crIBeam
+    Min = -180.000000000000000000
+    Max = 180.000000000000000000
+    Value = -120.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 24.000000000000000000
+    Position.Y = 113.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label6: TLabel
+    Position.X = 152.000000000000000000
+    Position.Y = 88.000000000000000000
+    Text = 'Max Angle of Touch'
+    TabOrder = 20
+  end
+  object edtMaxAngleOfTouch: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 21
+    Cursor = crIBeam
+    Min = -180.000000000000000000
+    Max = 180.000000000000000000
+    Value = 120.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 152.000000000000000000
+    Position.Y = 113.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object edtPointCountInMM: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 31
+    Cursor = crIBeam
+    Value = 10.000000000000000000
+    Position.X = 288.000000000000000000
+    Position.Y = 113.000000000000000000
+  end
+  object Label7: TLabel
+    Position.X = 288.000000000000000000
+    Position.Y = 88.000000000000000000
+    Text = 'Point Count in MM'
+    TabOrder = 1
+  end
+  object Label8: TLabel
+    Position.X = 24.000000000000000000
+    Position.Y = 152.000000000000000000
+    Text = 'Deviation X'
+    TabOrder = 39
+  end
+  object edtDeviationX: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 42
+    Cursor = crIBeam
+    Min = -100.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 24.000000000000000000
+    Position.Y = 177.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label9: TLabel
+    Position.X = 152.000000000000000000
+    Position.Y = 152.000000000000000000
+    Text = 'Deviation Z'
+    TabOrder = 27
+  end
+  object edtDeviationZ: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 30
+    Cursor = crIBeam
+    Min = -100.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 152.000000000000000000
+    Position.Y = 177.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label10: TLabel
+    Position.X = 288.000000000000000000
+    Position.Y = 152.000000000000000000
+    Text = 'Angle of ARM'
+    TabOrder = 24
+  end
+  object edtAngleOfArm: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 28
+    Cursor = crIBeam
+    Min = -90.000000000000000000
+    Max = 90.000000000000000000
+    Value = 90.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 288.000000000000000000
+    Position.Y = 177.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label11: TLabel
+    Position.X = 416.000000000000000000
+    Position.Y = 152.000000000000000000
+    Text = 'Length of Template'
+    TabOrder = 23
+  end
+  object edtLengthOfTemplate: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 26
+    Cursor = crIBeam
+    Max = 1000.000000000000000000
+    Value = 58.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 416.000000000000000000
+    Position.Y = 177.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object btnGenerate: TButton
+    Position.X = 24.000000000000000000
+    Position.Y = 412.000000000000000000
+    Size.Width = 528.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 18
+    Text = 'Generate'
+    TextSettings.Trimming = None
+    OnClick = btnGenerateClick
+  end
+  object Label12: TLabel
+    Position.X = 24.000000000000000000
+    Position.Y = 216.000000000000000000
+    Text = 'Size'
+    TabOrder = 14
+  end
+  object edtSize: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 16
+    Cursor = crIBeam
+    Value = 1.500000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 24.000000000000000000
+    Position.Y = 241.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object edtXCount: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 19
+    Cursor = crIBeam
+    Value = 1.000000000000000000
+    Position.X = 152.000000000000000000
+    Position.Y = 241.000000000000000000
+  end
+  object Label13: TLabel
+    Position.X = 152.000000000000000000
+    Position.Y = 216.000000000000000000
+    Text = 'X Count'
+    TabOrder = 4
+  end
+  object edtYCount: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 17
+    Cursor = crIBeam
+    Value = 8.000000000000000000
+    Position.X = 296.000000000000000000
+    Position.Y = 241.000000000000000000
+  end
+  object Label14: TLabel
+    Position.X = 296.000000000000000000
+    Position.Y = 216.000000000000000000
+    Text = 'Y Count'
+    TabOrder = 0
+  end
+  object Label15: TLabel
+    Position.X = 24.000000000000000000
+    Position.Y = 280.000000000000000000
+    Text = 'X Distance'
+    TabOrder = 7
+  end
+  object edtXDistance: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 8
+    Cursor = crIBeam
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 24.000000000000000000
+    Position.Y = 305.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label16: TLabel
+    Position.X = 152.000000000000000000
+    Position.Y = 280.000000000000000000
+    Text = 'Y Distance'
+    TabOrder = 2
+  end
+  object edtYDistance: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 3
+    Cursor = crIBeam
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 152.000000000000000000
+    Position.Y = 305.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label17: TLabel
+    Position.X = 296.000000000000000000
+    Position.Y = 283.000000000000000000
+    Text = 'Recurrence Mode'
+    TabOrder = 6
+  end
+  object radioCountByDistance: TRadioButton
+    GroupName = 'recurrenceMode'
+    IsChecked = True
+    Position.X = 288.000000000000000000
+    Position.Y = 305.000000000000000000
+    TabOrder = 15
+    Text = 'Count by Distance'
+  end
+  object radioDistanceByCount: TRadioButton
+    GroupName = 'recurrenceMode'
+    Position.X = 432.000000000000000000
+    Position.Y = 305.000000000000000000
+    TabOrder = 13
+    Text = 'Distance by Count'
+  end
+  object Label18: TLabel
+    Position.X = 416.000000000000000000
+    Position.Y = 88.000000000000000000
+    Text = 'Width of Part'
+    TabOrder = 22
+  end
+  object edtWidthOfPart: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 25
+    Cursor = crIBeam
+    Value = 8.000000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 416.000000000000000000
+    Position.Y = 113.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label19: TLabel
+    Position.X = 24.000000000000000000
+    Position.Y = 345.000000000000000000
+    Size.Width = 100.000000000000000000
+    Size.Height = 17.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Milling Step Value'
+    TabOrder = 44
+  end
+  object edtMillingStepValue: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 45
+    Cursor = crIBeam
+    Value = 0.100000000000000000
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 24.000000000000000000
+    Position.Y = 370.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label20: TLabel
+    Position.X = 152.000000000000000000
+    Position.Y = 345.000000000000000000
+    Size.Width = 100.000000000000000000
+    Size.Height = 17.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Milling Step Count'
+    TabOrder = 40
+  end
+  object edtMillingStepCount: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 41
+    Cursor = crIBeam
+    Value = 2.000000000000000000
+    Position.X = 152.000000000000000000
+    Position.Y = 370.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+  object Label21: TLabel
+    Position.X = 288.000000000000000000
+    Position.Y = 345.000000000000000000
+    Size.Width = 100.000000000000000000
+    Size.Height = 17.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Milling Finish'
+    TabOrder = 36
+  end
+  object edtMillingFinish: TNumberBox
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 37
+    Cursor = crIBeam
+    ValueType = Float
+    KeyboardType = NumbersAndPunctuation
+    Position.X = 288.000000000000000000
+    Position.Y = 370.000000000000000000
+    HorzIncrement = 0.010000000000000000
+    VertIncrement = 0.100000001490116100
+  end
+end
