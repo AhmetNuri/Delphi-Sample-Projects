@@ -2,8 +2,8 @@ unit CamAxis;
 
 interface
 
-uses Generics.Collections, CamPair, CamTool, Point6D, Classes, CamLetter,
-  CamType, MillingRequest;
+uses Generics.Collections, CamPair, CamTool, Point2D, Point6D, Classes,
+  CamLetter, CamType, MillingRequest;
 
 type
   AxisPoint6D = class helper for TPoint6D
@@ -29,6 +29,7 @@ type
     FCamType: TCamType;
     FMilling: TMillingRequest;
     FPoints: TList<TList<TPoint6D>>;
+    FShapePoints: TList<TList<TPoint2D>>;
     FLetters: TDictionary<TCamLetter, TCamLetterVariable>;
 
     function CreateRows(point: TPoint6D; depth: Single;
@@ -47,9 +48,11 @@ type
   public
     property Tool: TCamTool read FTool;
     property Points: TList < TList < TPoint6D >> read FPoints;
+    property ShapePoints: TList < TList < TPoint2D >> read FShapePoints;
 
     procedure SetTool(Tool: TCamTool);
     procedure SetPoints(Points: TList < TList < TPoint6D >> );
+    procedure SetShapePoints(Points: TList < TList < TPoint2D >> );
 
     property Milling: TMillingRequest read FMilling;
     procedure SetMilling(Milling: TMillingRequest);
@@ -63,10 +66,13 @@ type
     function GenerateCode: TStringList; virtual;
     function GetType: String; virtual;
 
+    function GenerateShape: TStringList;
+
     constructor Create;
     destructor Destroy; override;
   protected
     AxisLetters: TList<TCamLetter>;
+
     function GenerateAxisCode: TStringList;
   end;
 
@@ -188,6 +194,11 @@ end;
 procedure TCamAxis.SetPoints(Points: TList < TList < TPoint6D >> );
 begin
   FPoints := Points;
+end;
+
+procedure TCamAxis.SetShapePoints(Points: TList < TList < TPoint2D >> );
+begin
+  FShapePoints := Points;
 end;
 
 procedure TCamAxis.SetTool(Tool: TCamTool);
@@ -663,6 +674,25 @@ begin
   end;
 
   FreeAndNil(items);
+end;
+
+function TCamAxis.GenerateShape: TStringList;
+var
+  groupIndex, partIndex: integer;
+begin
+  result := TStringList.Create;
+
+  if (not Assigned(ShapePoints)) or (ShapePoints.Count = 0) then
+    exit;
+
+  for groupIndex := 0 to ShapePoints.Count - 1 do
+  begin
+    for partIndex := 0 to ShapePoints[groupIndex].Count - 1 do
+    begin
+      result.Add('X' + FormattedValue(ShapePoints[groupIndex][partIndex].D1) +
+        ' Y' + FormattedValue(ShapePoints[groupIndex][partIndex].D2));
+    end;
+  end;
 end;
 
 function TCamAxis.GenerateAxisCode: TStringList;

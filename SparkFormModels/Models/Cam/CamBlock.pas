@@ -2,8 +2,8 @@ unit CamBlock;
 
 interface
 
-uses CamAxis, CamPair, CamTool, Point6D, Generics.Collections, CamLetter,
-  CamType;
+uses CamAxis, CamPair, CamTool, Point2D, Point6D, Generics.Collections,
+  CamLetter, CamType;
 
 type
   TCamBlock = class(TCamPair)
@@ -14,6 +14,7 @@ type
 
     procedure SetAxis(Axis: TCamAxis);
     procedure SetPoints(points: TList < TList < TPoint6D >> );
+    procedure SetShapePoints(points: TList < TList < TPoint2D >> );
     procedure SetLetters(Letters: TDictionary<TCamLetter, TCamLetterVariable>);
     procedure SwitchCamType(CamType: TCamType);
 
@@ -53,7 +54,8 @@ begin
   FAxis := Axis;
 end;
 
-procedure TCamBlock.SetLetters(Letters: TDictionary<TCamLetter, TCamLetterVariable>);
+procedure TCamBlock.SetLetters(Letters: TDictionary<TCamLetter,
+  TCamLetterVariable>);
 begin
   if not Assigned(Axis) then
     raise Exception.Create('Assign axis before setting letters!');
@@ -67,6 +69,14 @@ begin
     raise Exception.Create('Assign axis before setting points!');
 
   Axis.SetPoints(points);
+end;
+
+procedure TCamBlock.SetShapePoints(points: TList < TList < TPoint2D >> );
+begin
+  if not Assigned(Axis) then
+    raise Exception.Create('Assign axis before setting points!');
+
+  Axis.SetShapePoints(points);
 end;
 
 procedure TCamBlock.SwitchCamType(CamType: TCamType);

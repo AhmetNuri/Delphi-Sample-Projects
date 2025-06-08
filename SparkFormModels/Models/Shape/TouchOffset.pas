@@ -11,7 +11,7 @@ type
   public
     OffsetValue: Single;
 
-    function OffsetType: TTouchOffsetType;
+    property OffsetType: TTouchOffsetType read FOffsetType;
 
     procedure SwitchTypeToNone;
     procedure SwitchTypeToDynamic;
@@ -21,11 +21,6 @@ type
 implementation
 
 { TTouchOffset }
-
-function TTouchOffset.OffsetType: TTouchOffsetType;
-begin
-  result := FOffsetType;
-end;
 
 procedure TTouchOffset.SwitchTypeToDynamic;
 begin

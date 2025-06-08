@@ -10,8 +10,8 @@ type
     FPercentFrom: Single;
     FPercentTo: Single;
   public
-    function PercentFrom: Single;
-    function PercentTo: Single;
+    property PercentFrom: Single read FPercentFrom;
+    property PercentTo: Single read FPercentTo;
 
     procedure SetArea(PercentFrom, PercentTo: Single);
   end;
@@ -21,8 +21,8 @@ type
     FPercentFrom: Single;
     FPercentTo: Single;
   public
-    function PercentFrom: Single;
-    function PercentTo: Single;
+    property PercentFrom: Single read FPercentFrom;
+    property PercentTo: Single read FPercentTo;
 
     procedure SetArea(PercentFrom, PercentTo: Single);
   end;
@@ -34,7 +34,7 @@ type
     OnX: TStretchX;
     OnY: TStretchY;
 
-    function Mode: TStretchMode;
+    property Mode: TStretchMode read FMode;
 
     procedure SwitchModeToTemplate;
     procedure SwitchModeToMinMax;
@@ -46,11 +46,6 @@ implementation
 uses SysUtils;
 
 { TStretch }
-
-function TStretch.Mode: TStretchMode;
-begin
-  result := FMode;
-end;
 
 procedure TStretch.SwitchModeToMinMax;
 begin
@@ -69,16 +64,6 @@ end;
 
 { TStretchX }
 
-function TStretchX.PercentFrom: Single;
-begin
-  result := FPercentFrom;
-end;
-
-function TStretchX.PercentTo: Single;
-begin
-  result := FPercentTo;
-end;
-
 procedure TStretchX.SetArea(PercentFrom, PercentTo: Single);
 begin
   if (PercentFrom < 0) or (PercentTo > 100) or (PercentFrom >= PercentTo) then
@@ -89,16 +74,6 @@ begin
 end;
 
 { TStretchY }
-
-function TStretchY.PercentFrom: Single;
-begin
-  result := FPercentFrom;
-end;
-
-function TStretchY.PercentTo: Single;
-begin
-  result := FPercentTo;
-end;
 
 procedure TStretchY.SetArea(PercentFrom, PercentTo: Single);
 begin

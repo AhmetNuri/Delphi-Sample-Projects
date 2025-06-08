@@ -8,8 +8,8 @@ type
     FPercentFrom: Single;
     FPercentTo: Single;
   public
-    function PercentFrom: Single;
-    function PercentTo: Single;
+    property PercentFrom: Single read FPercentFrom;
+    property PercentTo: Single read FPercentTo;
 
     procedure SetArea(PercentFrom, PercentTo: Single);
   end;
@@ -19,8 +19,8 @@ type
     FPercentFrom: Single;
     FPercentTo: Single;
   public
-    function PercentFrom: Single;
-    function PercentTo: Single;
+    property PercentFrom: Single read FPercentFrom;
+    property PercentTo: Single read FPercentTo;
 
     procedure SetArea(PercentFrom, PercentTo: Single);
   end;
@@ -37,16 +37,6 @@ uses SysUtils;
 
 { TCropX }
 
-function TCropX.PercentFrom: Single;
-begin
-  result := FPercentFrom;
-end;
-
-function TCropX.PercentTo: Single;
-begin
-  result := FPercentTo;
-end;
-
 procedure TCropX.SetArea(PercentFrom, PercentTo: Single);
 begin
   if (PercentFrom < 0) or (PercentTo > 100) or (PercentFrom >= PercentTo) then
@@ -57,16 +47,6 @@ begin
 end;
 
 { TCropY }
-
-function TCropY.PercentFrom: Single;
-begin
-  result := FPercentFrom;
-end;
-
-function TCropY.PercentTo: Single;
-begin
-  result := FPercentTo;
-end;
 
 procedure TCropY.SetArea(PercentFrom, PercentTo: Single);
 begin
