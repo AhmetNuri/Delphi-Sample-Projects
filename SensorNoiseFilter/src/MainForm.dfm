@@ -222,7 +222,7 @@ object FormMain: TFormMain
         Top = 8
         Width = 81
         Height = 13
-        Caption = 'Istatistik Bilgiler'
+        Caption = #304'statistik Bilgiler'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -11
@@ -274,7 +274,7 @@ object FormMain: TFormMain
         Top = 95
         Width = 300
         Height = 13
-        Caption = 'Renk: Mavi = Ham Veri | Yesil = Filtreli | Kirmizi = G'#252'r'#252'lt'#252' Noktasi'
+        Caption = 'Renk: Mavi = Ham Veri | Ye'#351'il = Filtreli | K'#305'rm'#305'z'#305' = G'#252'r'#252'lt'#252' Noktas'#305
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -11

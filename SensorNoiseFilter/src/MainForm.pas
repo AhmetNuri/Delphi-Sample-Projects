@@ -470,7 +470,7 @@ begin
   ACanvas.Font.Size := 9;
   ACanvas.Font.Color := clBlack;
   ACanvas.Font.Style := [fsBold];
-  ACanvas.TextOut(FGraphMarginLeft + 5, 3, Format('Sensör Verisi Grafigi - %d Nokta',
+  ACanvas.TextOut(FGraphMarginLeft + 5, 3, Format('Sensör Verisi Grafiği - %d Nokta',
     [Length(RawData)]));
   ACanvas.Font.Style := [];
 end;

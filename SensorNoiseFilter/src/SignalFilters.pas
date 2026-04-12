@@ -276,7 +276,7 @@ end;
 
 function TLowPassFilter.GetName: string;
 begin
-  Result := 'Düsük Gecisli Filtre (Low-Pass)';
+  Result := 'Düşük Geçişli Filtre (Low-Pass)';
 end;
 
 function TLowPassFilter.GetFilterType: TFilterType;
@@ -312,7 +312,7 @@ end;
 
 function THighPassFilter.GetName: string;
 begin
-  Result := 'Yüksek Gecisli Filtre (High-Pass)';
+  Result := 'Yüksek Geçişli Filtre (High-Pass)';
 end;
 
 function THighPassFilter.GetFilterType: TFilterType;
@@ -355,7 +355,7 @@ end;
 
 function TBandPassFilter.GetName: string;
 begin
-  Result := 'Bant Gecisli Filtre (Band-Pass)';
+  Result := 'Bant Geçişli Filtre (Band-Pass)';
 end;
 
 function TBandPassFilter.GetFilterType: TFilterType;
@@ -484,9 +484,9 @@ begin
   case AType of
     ftMovingAverage:        Result := 'Hareketli Ortalama';
     ftMedian:               Result := 'Medyan Filtre';
-    ftLowPass:              Result := 'Düsük Gecisli (Low-Pass)';
-    ftHighPass:             Result := 'Yüksek Gecisli (High-Pass)';
-    ftBandPass:             Result := 'Bant Gecisli (Band-Pass)';
+    ftLowPass:              Result := 'Düşük Geçişli (Low-Pass)';
+    ftHighPass:             Result := 'Yüksek Geçişli (High-Pass)';
+    ftBandPass:             Result := 'Bant Geçişli (Band-Pass)';
     ftKalman:               Result := 'Kalman Filtresi';
     ftExponentialSmoothing: Result := 'Üstel Düzeltme';
   else
