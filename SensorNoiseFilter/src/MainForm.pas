@@ -605,7 +605,7 @@ end;
 function TFormMain.DownsampleLTTBWithIndices(const AData: TArray<Double>;
   MaxPoints: Integer; out Indices: TArray<Integer>): TArray<Double>;
 var
-  DataLen, i, a, nextA, rangeOffs, rangeTo: Integer;
+  DataLen, i, j, a, nextA, rangeOffs, rangeTo: Integer;
   Every, MaxArea, Area, AvgX, AvgY: Double;
   Values_: TArray<Double>;
 begin
@@ -639,7 +639,7 @@ begin
     AvgX := 0; AvgY := 0;
     if rangeTo > rangeOffs then
     begin
-      for var j := rangeOffs to rangeTo - 1 do
+      for j := rangeOffs to rangeTo - 1 do
       begin
         AvgX := AvgX + j;
         AvgY := AvgY + AData[j];
@@ -654,7 +654,7 @@ begin
 
     MaxArea := -1;
     nextA   := Min(rangeOffs, DataLen - 1);
-    for var j := rangeOffs to rangeTo - 1 do
+    for j := rangeOffs to rangeTo - 1 do
     begin
       Area := Abs((a - AvgX) * (AData[j] - AData[a]) -
                   (a - j)    * (AvgY      - AData[a])) * 0.5;

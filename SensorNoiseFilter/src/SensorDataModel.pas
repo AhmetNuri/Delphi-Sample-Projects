@@ -150,7 +150,7 @@ begin
 
   { Pre-size the list based on a rough bytes-per-row estimate (60 bytes/row).
     This avoids repeated TList reallocation as rows are added. }
-  EstimatedRows := Max(1000, Integer(Min(TFile.GetSize(AFileName) div 60, MaxInt)));
+  EstimatedRows := Max(1000, Min(TFile.GetSize(AFileName) div 60, Int64(MaxInt)));
   FData.Capacity := EstimatedRows;
 
   SR := TStreamReader.Create(AFileName, TEncoding.UTF8, True, 65536);

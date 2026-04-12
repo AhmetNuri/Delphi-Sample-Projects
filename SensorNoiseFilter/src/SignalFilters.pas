@@ -167,7 +167,7 @@ begin
 
   Half := FWindowSize div 2;
 
-  { Initialize window for i = 0 }
+  { Initialize window for I = 0 }
   OldLeft  := 0;
   OldRight := Min(Half, N - 1);
   Sum := 0;
