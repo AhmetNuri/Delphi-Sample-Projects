@@ -236,80 +236,151 @@ object FormMain: TFormMain
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
-    object PanelStats: TPanel
+    object PageControlStats: TPageControl
       Left = 0
       Top = 0
       Width = 1050
-      Height = 120
-      Align = alTop
-      BevelOuter = bvLowered
+      Height = 126
+      Align = alClient
       TabOrder = 0
-      object LabelStatsTitle: TLabel
-        Left = 16
-        Top = 8
-        Width = 82
-        Height = 13
-        Caption = #304'statistik Bilgiler'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Segoe UI'
-        Font.Style = [fsBold]
-        ParentFont = False
+      object TabSheetStats: TTabSheet
+        Caption = #304'statistikler'
+        object LabelRawStats: TLabel
+          Left = 8
+          Top = 8
+          Width = 55
+          Height = 13
+          Caption = 'Ham Veri: -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clBlue
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
+        object LabelFilteredStats: TLabel
+          Left = 8
+          Top = 28
+          Width = 64
+          Height = 13
+          Caption = 'Filtreli Veri: -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clGreen
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
+        object LabelNoiseInfo: TLabel
+          Left = 8
+          Top = 48
+          Width = 83
+          Height = 13
+          Caption = 'G'#252'r'#252'lt'#252' Bilgisi: -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clRed
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
+        object LabelLegend: TLabel
+          Left = 8
+          Top = 68
+          Width = 480
+          Height = 13
+          Caption =
+            'Renk: Mavi = Ham Veri | Ye'#351'il = Filtreli | K'#305'rm'#305'z'#305' = G'#252'r'#252'lt'#252' | (' +
+            'T'#252'm Eksen: Mavi=X, Turuncu=Y, Mor=Z)'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = [fsItalic]
+          ParentFont = False
+        end
       end
-      object LabelRawStats: TLabel
-        Left = 16
-        Top = 30
-        Width = 55
-        Height = 13
-        Caption = 'Ham Veri: -'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clBlue
-        Font.Height = -11
-        Font.Name = 'Segoe UI'
-        Font.Style = []
-        ParentFont = False
-      end
-      object LabelFilteredStats: TLabel
-        Left = 16
-        Top = 50
-        Width = 64
-        Height = 13
-        Caption = 'Filtreli Veri: -'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clGreen
-        Font.Height = -11
-        Font.Name = 'Segoe UI'
-        Font.Style = []
-        ParentFont = False
-      end
-      object LabelNoiseInfo: TLabel
-        Left = 16
-        Top = 70
-        Width = 83
-        Height = 13
-        Caption = 'G'#252'r'#252'lt'#252' Bilgisi: -'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clRed
-        Font.Height = -11
-        Font.Name = 'Segoe UI'
-        Font.Style = []
-        ParentFont = False
-      end
-      object LabelLegend: TLabel
-        Left = 16
-        Top = 95
-        Width = 480
-        Height = 13
-        Caption = 
-          'Renk: Mavi = Ham Veri | Ye'#351'il = Filtreli | K'#305'rm'#305'z'#305' = G'#252'r'#252'lt'#252' | (' +
-          'T'#252'm Eksen: Mavi=X, Turuncu=Y, Mor=Z)'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Segoe UI'
-        Font.Style = [fsItalic]
-        ParentFont = False
+      object TabSheetNoise: TTabSheet
+        Caption = 'G'#252'r'#252'lt'#252' Analizi'
+        ImageIndex = 1
+        object LabelNoiseMAD: TLabel
+          Left = 8
+          Top = 8
+          Width = 120
+          Height = 13
+          Caption = 'MAD-Sigma: -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
+        object LabelNoiseRMS: TLabel
+          Left = 8
+          Top = 28
+          Width = 120
+          Height = 13
+          Caption = 'RMS G'#252'r'#252'lt'#252': -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
+        object LabelNoiseSNR: TLabel
+          Left = 8
+          Top = 48
+          Width = 120
+          Height = 13
+          Caption = 'SNR: -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
+        object LabelNoiseKalman: TLabel
+          Left = 350
+          Top = 8
+          Width = 200
+          Height = 13
+          Caption = 'Kalman R/Q: -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
+        object LabelNoiseAlpha: TLabel
+          Left = 350
+          Top = 28
+          Width = 200
+          Height = 13
+          Caption = #214'nerilen Alpha: -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
+        object LabelNoiseSigma: TLabel
+          Left = 350
+          Top = 48
+          Width = 200
+          Height = 13
+          Caption = #214'nerilen Sigma '#199'arpan'#305': -'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ParentFont = False
+        end
       end
     end
     object StatusBar: TStatusBar

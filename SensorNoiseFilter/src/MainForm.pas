@@ -50,14 +50,22 @@ type
     PanelGraph: TPanel;
     PaintBoxGraph: TSkPaintBox;
 
-    { Alt Panel - İstatistikler }
+    { Alt Panel - İstatistikler (TabControl) }
     PanelBottom: TPanel;
-    PanelStats: TPanel;
-    LabelStatsTitle: TLabel;
+    PageControlStats: TPageControl;
+    TabSheetStats: TTabSheet;
+    TabSheetNoise: TTabSheet;
     LabelRawStats: TLabel;
     LabelFilteredStats: TLabel;
     LabelNoiseInfo: TLabel;
     LabelLegend: TLabel;
+    { Gürültü Analizi sekmesi }
+    LabelNoiseMAD: TLabel;
+    LabelNoiseRMS: TLabel;
+    LabelNoiseSNR: TLabel;
+    LabelNoiseKalman: TLabel;
+    LabelNoiseAlpha: TLabel;
+    LabelNoiseSigma: TLabel;
     StatusBar: TStatusBar;
 
     { Diyaloglar }
@@ -510,10 +518,10 @@ begin
 end;
 
 procedure TFormMain.BtnAutoEstimateNoiseClick(Sender: TObject);
-{ MAD tabanlı gürültü sigma tahmini: seçili eksenin gürültü seviyesini
-  otomatik hesaplar ve EditSigma alanını önerilen çarpanla doldurur. }
+{ MAD + RMS-fark + SNR tabanlı kapsamlı gürültü analizi:
+  tüm metrikleri hesaplar, Gürültü Analizi sekmesini günceller ve öne çeker. }
 var
-  MADSigma, SuggestedMultiplier: Double;
+  Analysis: TNoiseAnalysisResult;
   AxisName: string;
   FS: TFormatSettings;
 begin
@@ -526,8 +534,7 @@ begin
   FS := TFormatSettings.Create;
   FS.DecimalSeparator := '.';
 
-  MADSigma := FController.EstimateNoiseSigmaMAD(FController.GetSelectedAxis);
-  SuggestedMultiplier := FController.GetSuggestedSigmaMultiplier(FController.GetSelectedAxis);
+  Analysis := FController.AnalyzeNoise(FController.GetSelectedAxis);
 
   case FController.GetSelectedAxis of
     atX: AxisName := 'X';
@@ -535,10 +542,32 @@ begin
     atZ: AxisName := 'Z';
   end;
 
-  EditSigma.Text := Format('%.2f', [SuggestedMultiplier], FS);
+  { Sigma alanını önerilen çarpanla doldur }
+  EditSigma.Text := Format('%.2f', [Analysis.SuggestedSigma], FS);
+
+  { Gürültü Analizi sekmesini güncelle }
+  LabelNoiseMAD.Caption := Format(
+    'MAD-Sigma [%s]: %.5f', [AxisName, Analysis.MADSigma]);
+  LabelNoiseRMS.Caption := Format(
+    'RMS Gürültü [%s]: %.5f  (Sinyal RMS: %.5f)',
+    [AxisName, Analysis.RMSNoise, Analysis.SignalRMS]);
+  LabelNoiseSNR.Caption := Format(
+    'SNR [%s]: %.1f dB', [AxisName, Analysis.SNR_dB]);
+  LabelNoiseKalman.Caption := Format(
+    'Kalman  R=%.6f  Q=%.6f',
+    [Analysis.SuggestedKalmanR, Analysis.SuggestedKalmanQ]);
+  LabelNoiseAlpha.Caption := Format(
+    #214'nerilen Alpha (LP/'#220'stel): %.3f', [Analysis.SuggestedAlpha]);
+  LabelNoiseSigma.Caption := Format(
+    #214'nerilen Sigma '#199'arpan'#305': %.2f', [Analysis.SuggestedSigma]);
+
+  { Kullanıcıyı Gürültü Analizi sekmesine yönlendir }
+  PageControlStats.ActivePage := TabSheetNoise;
+
   StatusBar.Panels[0].Text := Format(
-    '%s ekseni gürültü tahmini: MAD-Sigma=%.4f | Önerilen Çarpan=%.2f',
-    [AxisName, MADSigma, SuggestedMultiplier]);
+    '[%s] MAD-σ=%.4f | RMS-gürültü=%.4f | SNR=%.1f dB | Önerilen σ×=%.2f',
+    [AxisName, Analysis.MADSigma, Analysis.RMSNoise,
+     Analysis.SNR_dB, Analysis.SuggestedSigma]);
 end;
 
 procedure TFormMain.CheckShowAllAxesClick(Sender: TObject);

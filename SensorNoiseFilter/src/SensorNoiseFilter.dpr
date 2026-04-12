@@ -24,6 +24,7 @@ program SensorNoiseFilter;
 
 uses
   Vcl.Forms,
+  System.Skia,      { Skia render backend için GlobalUseSkia }
   MainForm in 'MainForm.pas' {FormMain},
   SensorDataModel in 'SensorDataModel.pas',
   SignalFilters in 'SignalFilters.pas',
@@ -32,6 +33,10 @@ uses
 {$R *.res}
 
 begin
+  { TSkPaintBox ve diğer Skia bileşenlerinin OnDraw olayını tetiklemesi için
+    Skia render backend'ini etkinleştir. Bu satır olmadan TSkPaintBox hiçbir
+    şey çizmez ve OnDraw olayı asla ateşlenmez. }
+  GlobalUseSkia := True;
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.Title := 'Sensör Verisi Gürültü Temizleme';
