@@ -79,6 +79,9 @@ type
     { Temizle }
     procedure Clear;
 
+    { Gürültü bayraklarını dizi olarak döndürme (tek geçiş, GetRecord döngüsü yok) }
+    function GetNoiseData(AAxis: TAxisType): TArray<Boolean>;
+
     property Count: Integer read GetCount;
     property NoiseSigmaMultiplier: Double read FNoiseSigmaMultiplier write FNoiseSigmaMultiplier;
   end;
@@ -132,28 +135,42 @@ end;
 
 procedure TSensorDataModel.LoadFromCSV(const AFileName: string);
 var
-  Lines: TStringList;
-  I: Integer;
+  SR: TStreamReader;
+  Line: string;
   Fields: TArray<string>;
   Rec: TSensorRecord;
   FS: TFormatSettings;
+  IsFirstLine: Boolean;
+  EstimatedRows: Integer;
 begin
   Clear;
 
   FS := TFormatSettings.Create;
   FS.DecimalSeparator := '.';
 
-  Lines := TStringList.Create;
-  try
-    Lines.LoadFromFile(AFileName, TEncoding.UTF8);
+  { Pre-size the list based on a rough bytes-per-row estimate (60 bytes/row).
+    This avoids repeated TList reallocation as rows are added. }
+  EstimatedRows := Max(1000, Integer(Min(TFile.GetSize(AFileName) div 60, MaxInt)));
+  FData.Capacity := EstimatedRows;
 
-    { İlk satır başlık, 1'den başla }
-    for I := 1 to Lines.Count - 1 do
+  SR := TStreamReader.Create(AFileName, TEncoding.UTF8, True, 65536);
+  try
+    IsFirstLine := True;
+    while not SR.EndOfStream do
     begin
-      if Trim(Lines[I]) = '' then
+      Line := SR.ReadLine;
+
+      { Skip header row }
+      if IsFirstLine then
+      begin
+        IsFirstLine := False;
+        Continue;
+      end;
+
+      if Trim(Line) = '' then
         Continue;
 
-      Fields := Lines[I].Split([',']);
+      Fields := Line.Split([',']);
       if Length(Fields) < 6 then
         Continue;
 
@@ -168,16 +185,16 @@ begin
         Continue; { Geçersiz sayısal veri, satırı atla }
       end;
 
-      Rec.Time := ParseDateTime(Fields[4]);
+      Rec.Time       := ParseDateTime(Fields[4]);
       Rec.DeviceTime := ParseDateTime(Fields[5]);
-      Rec.IsNoiseX := False;
-      Rec.IsNoiseY := False;
-      Rec.IsNoiseZ := False;
+      Rec.IsNoiseX   := False;
+      Rec.IsNoiseY   := False;
+      Rec.IsNoiseZ   := False;
 
       FData.Add(Rec);
     end;
   finally
-    Lines.Free;
+    SR.Free;
   end;
 end;
 
@@ -270,33 +287,65 @@ end;
 
 procedure TSensorDataModel.DetectNoise(ASigmaMultiplier: Double);
 var
-  I: Integer;
-  StatsX, StatsY, StatsZ: TStatistics;
-  DataX, DataY, DataZ: TArray<Double>;
+  I, N: Integer;
   Rec: TSensorRecord;
+  SumX, SumY, SumZ: Double;
+  SumSqX, SumSqY, SumSqZ: Double;
+  MeanX, MeanY, MeanZ: Double;
+  StdX, StdY, StdZ: Double;
   ThresholdX, ThresholdY, ThresholdZ: Double;
 begin
   FNoiseSigmaMultiplier := ASigmaMultiplier;
+  N := FData.Count;
+  if N = 0 then
+    Exit;
 
-  DataX := GetAxisData(atX);
-  DataY := GetAxisData(atY);
-  DataZ := GetAxisData(atZ);
-
-  StatsX := CalculateStatistics(DataX);
-  StatsY := CalculateStatistics(DataY);
-  StatsZ := CalculateStatistics(DataZ);
-
-  ThresholdX := StatsX.StdDev * ASigmaMultiplier;
-  ThresholdY := StatsY.StdDev * ASigmaMultiplier;
-  ThresholdZ := StatsZ.StdDev * ASigmaMultiplier;
-
-  for I := 0 to FData.Count - 1 do
+  { Pass 1: compute means — avoids allocating 3 × TArray<Double> copies }
+  SumX := 0; SumY := 0; SumZ := 0;
+  for I := 0 to N - 1 do
   begin
-    Rec := FData[I];
-    Rec.IsNoiseX := Abs(Rec.X - StatsX.Mean) > ThresholdX;
-    Rec.IsNoiseY := Abs(Rec.Y - StatsY.Mean) > ThresholdY;
-    Rec.IsNoiseZ := Abs(Rec.Z - StatsZ.Mean) > ThresholdZ;
-    FData[I] := Rec;
+    Rec  := FData[I];
+    SumX := SumX + Rec.X;
+    SumY := SumY + Rec.Y;
+    SumZ := SumZ + Rec.Z;
+  end;
+  MeanX := SumX / N;
+  MeanY := SumY / N;
+  MeanZ := SumZ / N;
+
+  { Pass 2: compute standard deviations }
+  SumSqX := 0; SumSqY := 0; SumSqZ := 0;
+  for I := 0 to N - 1 do
+  begin
+    Rec    := FData[I];
+    SumSqX := SumSqX + Sqr(Rec.X - MeanX);
+    SumSqY := SumSqY + Sqr(Rec.Y - MeanY);
+    SumSqZ := SumSqZ + Sqr(Rec.Z - MeanZ);
+  end;
+
+  if N > 1 then
+  begin
+    StdX := Sqrt(SumSqX / (N - 1));
+    StdY := Sqrt(SumSqY / (N - 1));
+    StdZ := Sqrt(SumSqZ / (N - 1));
+  end
+  else
+  begin
+    StdX := 0; StdY := 0; StdZ := 0;
+  end;
+
+  ThresholdX := StdX * ASigmaMultiplier;
+  ThresholdY := StdY * ASigmaMultiplier;
+  ThresholdZ := StdZ * ASigmaMultiplier;
+
+  { Pass 3: mark noise flags }
+  for I := 0 to N - 1 do
+  begin
+    Rec          := FData[I];
+    Rec.IsNoiseX := Abs(Rec.X - MeanX) > ThresholdX;
+    Rec.IsNoiseY := Abs(Rec.Y - MeanY) > ThresholdY;
+    Rec.IsNoiseZ := Abs(Rec.Z - MeanZ) > ThresholdZ;
+    FData[I]     := Rec;
   end;
 end;
 
@@ -306,6 +355,23 @@ begin
   SetLength(FFilteredX, 0);
   SetLength(FFilteredY, 0);
   SetLength(FFilteredZ, 0);
+end;
+
+function TSensorDataModel.GetNoiseData(AAxis: TAxisType): TArray<Boolean>;
+var
+  I: Integer;
+  Rec: TSensorRecord;
+begin
+  SetLength(Result, FData.Count);
+  for I := 0 to FData.Count - 1 do
+  begin
+    Rec := FData[I];
+    case AAxis of
+      atX: Result[I] := Rec.IsNoiseX;
+      atY: Result[I] := Rec.IsNoiseY;
+      atZ: Result[I] := Rec.IsNoiseZ;
+    end;
+  end;
 end;
 
 end.

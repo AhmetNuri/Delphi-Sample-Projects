@@ -155,8 +155,9 @@ end;
 
 function TMovingAverageFilter.Apply(const AData: TArray<Double>): TArray<Double>;
 var
-  I, J, N, Half, StartIdx, EndIdx, WinCount: Integer;
+  I, N, Half: Integer;
   Sum: Double;
+  OldLeft, OldRight, NewLeft, NewRight: Integer;
 begin
   N := Length(AData);
   SetLength(Result, N);
@@ -166,23 +167,31 @@ begin
 
   Half := FWindowSize div 2;
 
-  for I := 0 to N - 1 do
+  { Initialize window for i = 0 }
+  OldLeft  := 0;
+  OldRight := Min(Half, N - 1);
+  Sum := 0;
+  for I := OldLeft to OldRight do
+    Sum := Sum + AData[I];
+  Result[0] := Sum / (OldRight - OldLeft + 1);
+
+  { O(N) sliding-window: each step adds/removes at most one element }
+  for I := 1 to N - 1 do
   begin
-    StartIdx := Max(0, I - Half);
-    EndIdx := Min(N - 1, I + Half);
-    Sum := 0;
-    WinCount := 0;
+    NewLeft  := Max(0, I - Half);
+    NewRight := Min(N - 1, I + Half);
 
-    for J := StartIdx to EndIdx do
-    begin
-      Sum := Sum + AData[J];
-      Inc(WinCount);
-    end;
+    { Expand right }
+    if NewRight > OldRight then
+      Sum := Sum + AData[NewRight];
 
-    if WinCount > 0 then
-      Result[I] := Sum / WinCount
-    else
-      Result[I] := AData[I];
+    { Shrink left }
+    if NewLeft > OldLeft then
+      Sum := Sum - AData[OldLeft];
+
+    OldLeft  := NewLeft;
+    OldRight := NewRight;
+    Result[I] := Sum / (NewRight - NewLeft + 1);
   end;
 end;
 
@@ -220,20 +229,21 @@ begin
 
   Half := FWindowSize div 2;
 
+  { Pre-allocate window buffer once — avoids repeated heap allocation in loop }
+  SetLength(Window, FWindowSize);
+
   for I := 0 to N - 1 do
   begin
     StartIdx := Max(0, I - Half);
-    EndIdx := Min(N - 1, I + Half);
+    EndIdx   := Min(N - 1, I + Half);
     WinCount := EndIdx - StartIdx + 1;
 
-    SetLength(Window, WinCount);
     for J := 0 to WinCount - 1 do
       Window[J] := AData[StartIdx + J];
 
-    { Sırala }
-    TArray.Sort<Double>(Window);
+    { Sort only the used portion of the pre-allocated buffer }
+    TArray.Sort<Double>(Window, TComparer<Double>.Default, 0, WinCount);
 
-    { Medyanı al }
     Result[I] := Window[WinCount div 2];
   end;
 end;
