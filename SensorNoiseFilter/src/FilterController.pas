@@ -21,6 +21,7 @@ type
   TStatusMessageEvent = procedure(Sender: TObject; const AMessage: string) of object;
   TStatisticsUpdatedEvent = procedure(Sender: TObject;
     const ARawStats, AFilteredStats: TStatistics; AAxis: TAxisType) of object;
+  TProgressEvent = procedure(Sender: TObject; APercent: Integer; const AMessage: string) of object;
 
   { Ana controller sınıfı }
   TFilterController = class
@@ -37,8 +38,10 @@ type
     FOnNoiseDetected: TNoiseDetectedEvent;
     FOnStatusMessage: TStatusMessageEvent;
     FOnStatisticsUpdated: TStatisticsUpdatedEvent;
+    FOnProgress: TProgressEvent;
 
     procedure DoStatusMessage(const AMsg: string);
+    procedure DoProgress(APercent: Integer; const AMsg: string);
   public
     constructor Create;
     destructor Destroy; override;
@@ -76,6 +79,7 @@ type
     property OnNoiseDetected: TNoiseDetectedEvent read FOnNoiseDetected write FOnNoiseDetected;
     property OnStatusMessage: TStatusMessageEvent read FOnStatusMessage write FOnStatusMessage;
     property OnStatisticsUpdated: TStatisticsUpdatedEvent read FOnStatisticsUpdated write FOnStatisticsUpdated;
+    property OnProgress: TProgressEvent read FOnProgress write FOnProgress;
   end;
 
 implementation
@@ -104,18 +108,28 @@ begin
     FOnStatusMessage(Self, AMsg);
 end;
 
+procedure TFilterController.DoProgress(APercent: Integer; const AMsg: string);
+begin
+  if Assigned(FOnProgress) then
+    FOnProgress(Self, APercent, AMsg);
+end;
+
 procedure TFilterController.LoadCSV(const AFileName: string);
 begin
   try
+    DoProgress(0, 'CSV yükleniyor...');
     DoStatusMessage('CSV dosyası yükleniyor: ' + ExtractFileName(AFileName));
     FModel.LoadFromCSV(AFileName);
+    DoProgress(70, Format('%d kayıt yüklendi.', [FModel.Count]));
     DoStatusMessage(Format('Toplam %d kayıt yüklendi.', [FModel.Count]));
 
     if Assigned(FOnDataLoaded) then
       FOnDataLoaded(Self, FModel.Count);
 
     { Otomatik gürültü tespiti }
+    DoProgress(80, 'Gürültü tespiti...');
     DetectNoise(FModel.NoiseSigmaMultiplier);
+    DoProgress(100, 'Hazır.');
 
   except
     on E: Exception do
@@ -148,6 +162,7 @@ var
   RawData, Filtered: TArray<Double>;
   FilterName: string;
   Axis: TAxisType;
+  AxisIdx: Integer;
 begin
   if FModel.Count = 0 then
   begin
@@ -160,13 +175,18 @@ begin
   FilterName := FCurrentFilter.GetName;
 
   DoStatusMessage('Filtre uygulanıyor: ' + FilterName);
+  DoProgress(0, 'Filtre uygulanıyor...');
 
-  { Tüm eksenlere filtre uygula }
+  { Tüm eksenlere filtre uygula — progress per axis }
+  AxisIdx := 0;
   for Axis := Low(TAxisType) to High(TAxisType) do
   begin
-    RawData := FModel.GetAxisData(Axis);
+    RawData  := FModel.GetAxisData(Axis);
     Filtered := FCurrentFilter.Apply(RawData);
     FModel.SetFilteredData(Axis, Filtered);
+    Inc(AxisIdx);
+    DoProgress(Round(AxisIdx / 3 * 100),
+      Format('Filtre: %s (%d/3 eksen)', [FilterName, AxisIdx]));
   end;
 
   DoStatusMessage('Filtre uygulandı: ' + FilterName);
@@ -185,6 +205,7 @@ begin
   if FModel.Count = 0 then
     Exit;
 
+  DoProgress(0, 'Gürültü tespiti yapılıyor...');
   FModel.DetectNoise(ASigmaMultiplier);
 
   NoiseX := 0;
@@ -200,6 +221,7 @@ begin
   end;
 
   DoStatusMessage(Format('Gürültü tespiti: X=%d, Y=%d, Z=%d nokta', [NoiseX, NoiseY, NoiseZ]));
+  DoProgress(100, 'Gürültü tespiti tamamlandı.');
 
   if Assigned(FOnNoiseDetected) then
     FOnNoiseDetected(Self, NoiseX, NoiseY, NoiseZ);
