@@ -342,10 +342,18 @@ end;
 
 function TFilterController.GetSuggestedSigmaMultiplier(AAxis: TAxisType): Double;
 { Veri karakteristiğine göre önerilen sigma çarpanını hesaplar.
-  MAD tahmini ve örnek standart sapması oranına dayanır:
-  - Veri temizse (az aykırı değer): MAD_sigma ≈ StdDev → multiplier ≈ 1.96
-  - Çok aykırı değer varsa: MAD_sigma << StdDev → multiplier düşer
-  Sonuç [0.5, 5.0] aralığına sınırlandırılır. }
+
+  Yöntem: Çarpan = NORMAL_DIST_95_PERCENTILE * (MAD_sigma / SampleStdDev)
+
+  - Temiz veri (az aykırı değer):
+      MAD_sigma ≈ SampleStdDev  →  çarpan ≈ 1.96 (standart %95 eşiği)
+  - Çok aykırı değer içeren veri:
+      SampleStdDev, aykırı değerlerle şişer; MAD_sigma küçük kalır
+      →  MAD_sigma / SampleStdDev < 1  →  çarpan 1.96'dan küçük
+  Bu sayede eşik değeri, şişirilmiş StdDev'e değil asıl gürültü seviyesine
+  (MAD_sigma) göre ayarlanır; aykırı değerleri daha etkin yakalar.
+
+  Sonuç [MIN_SIGMA_MULTIPLIER, MAX_SIGMA_MULTIPLIER] aralığına sınırlandırılır. }
 var
   RawData: TArray<Double>;
   MADSigma, SampleStdDev: Double;

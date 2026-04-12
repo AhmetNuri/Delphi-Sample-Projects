@@ -864,7 +864,8 @@ var
   Metrics: TSkFontMetrics;
 begin
   AFont.GetMetrics(Metrics);
-  { fAscent negatif bir değer; taban = üst - ascent }
+  { Skia'da fAscent, taban çizgisinin ÜSTÜNDEKI mesafeyi negatif sayı olarak verir
+    (örn. -7.5). Üst-sol Y'den taban Y'ye dönüşüm: taban = üst + (-fAscent) = üst - fAscent }
   Result := ATopY - Metrics.fAscent;
 end;
 
