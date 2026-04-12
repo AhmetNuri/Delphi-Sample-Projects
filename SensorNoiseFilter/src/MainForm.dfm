@@ -22,6 +22,7 @@ object FormMain: TFormMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
+    ExplicitWidth = 1044
     object LabelFile: TLabel
       Left = 16
       Top = 14
@@ -189,23 +190,24 @@ object FormMain: TFormMain
       TabOrder = 12
       OnClick = CheckDrawGraphClick
     end
-    object BtnAutoEstimateNoise: TButton
-      Left = 782
-      Top = 69
-      Width = 130
-      Height = 25
-      Caption = 'Otomatik Tahmin'
-      TabOrder = 13
-      OnClick = BtnAutoEstimateNoiseClick
-    end
     object CheckShowAllAxes: TCheckBox
-      Left = 920
-      Top = 74
+      Left = 750
+      Top = 70
       Width = 125
       Height = 17
       Caption = 'T'#252'm Eksenleri G'#246'ster'
-      TabOrder = 14
+      TabOrder = 13
+      Visible = False
       OnClick = CheckShowAllAxesClick
+    end
+    object BtnAutoEstimateNoise: TButton
+      Left = 885
+      Top = 70
+      Width = 130
+      Height = 25
+      Caption = 'Otomatik Tahmin'
+      TabOrder = 14
+      OnClick = BtnAutoEstimateNoiseClick
     end
   end
   object PanelGraph: TPanel
@@ -216,7 +218,9 @@ object FormMain: TFormMain
     Align = alClient
     BevelOuter = bvNone
     TabOrder = 1
-    object PaintBoxGraph: TSkPaintBox
+    ExplicitWidth = 1044
+    ExplicitHeight = 413
+    object PaintBoxGraph: TPaintBox
       Left = 0
       Top = 0
       Width = 1050
@@ -225,7 +229,7 @@ object FormMain: TFormMain
       OnMouseDown = PaintBoxGraphMouseDown
       OnMouseMove = PaintBoxGraphMouseMove
       OnMouseUp = PaintBoxGraphMouseUp
-      OnDraw = PaintBoxGraphDraw
+      OnPaint = PaintBoxGraphPaint
     end
   end
   object PanelBottom: TPanel
@@ -236,13 +240,17 @@ object FormMain: TFormMain
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
+    ExplicitTop = 518
+    ExplicitWidth = 1044
     object PageControlStats: TPageControl
       Left = 0
       Top = 0
       Width = 1050
       Height = 126
+      ActivePage = TabSheetStats
       Align = alClient
       TabOrder = 0
+      ExplicitWidth = 1044
       object TabSheetStats: TTabSheet
         Caption = #304'statistikler'
         object LabelRawStats: TLabel
@@ -289,7 +297,7 @@ object FormMain: TFormMain
           Top = 68
           Width = 480
           Height = 13
-          Caption =
+          Caption = 
             'Renk: Mavi = Ham Veri | Ye'#351'il = Filtreli | K'#305'rm'#305'z'#305' = G'#252'r'#252'lt'#252' | (' +
             'T'#252'm Eksen: Mavi=X, Turuncu=Y, Mor=Z)'
           Font.Charset = DEFAULT_CHARSET
@@ -306,7 +314,7 @@ object FormMain: TFormMain
         object LabelNoiseMAD: TLabel
           Left = 8
           Top = 8
-          Width = 120
+          Width = 70
           Height = 13
           Caption = 'MAD-Sigma: -'
           Font.Charset = DEFAULT_CHARSET
@@ -319,7 +327,7 @@ object FormMain: TFormMain
         object LabelNoiseRMS: TLabel
           Left = 8
           Top = 28
-          Width = 120
+          Width = 76
           Height = 13
           Caption = 'RMS G'#252'r'#252'lt'#252': -'
           Font.Charset = DEFAULT_CHARSET
@@ -332,7 +340,7 @@ object FormMain: TFormMain
         object LabelNoiseSNR: TLabel
           Left = 8
           Top = 48
-          Width = 120
+          Width = 31
           Height = 13
           Caption = 'SNR: -'
           Font.Charset = DEFAULT_CHARSET
@@ -345,7 +353,7 @@ object FormMain: TFormMain
         object LabelNoiseKalman: TLabel
           Left = 350
           Top = 8
-          Width = 200
+          Width = 69
           Height = 13
           Caption = 'Kalman R/Q: -'
           Font.Charset = DEFAULT_CHARSET
@@ -358,7 +366,7 @@ object FormMain: TFormMain
         object LabelNoiseAlpha: TLabel
           Left = 350
           Top = 28
-          Width = 200
+          Width = 88
           Height = 13
           Caption = #214'nerilen Alpha: -'
           Font.Charset = DEFAULT_CHARSET
@@ -371,7 +379,7 @@ object FormMain: TFormMain
         object LabelNoiseSigma: TLabel
           Left = 350
           Top = 48
-          Width = 200
+          Width = 132
           Height = 13
           Caption = #214'nerilen Sigma '#199'arpan'#305': -'
           Font.Charset = DEFAULT_CHARSET

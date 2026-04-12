@@ -2,8 +2,7 @@
   MainForm.pas - View Katmanı
   
   Kullanıcı arayüzü: CSV yükleme, filtre seçimi, parametre ayarları,
-  TSkPaintBox ile Skia tabanlı grafik çizimi, gürültü noktalarının renkli
-  gösterimi, çok eksenli görüntüleme ve MAD tabanlı otomatik gürültü tahmini.
+  TPaintBox ile grafik çizimi ve gürültü noktalarının renkli gösterimi.
   
   MVC Mimarisi: VIEW
   ============================================================================ }
@@ -14,11 +13,10 @@ interface
 uses
   Winapi.Windows, Winapi.Messages,
   System.SysUtils, System.Variants, System.Classes, System.Math,
-  System.Types, System.UITypes, System.Threading,
+  System.Threading,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
   Vcl.ExtCtrls, Vcl.ComCtrls,
-      vcl.Skia,
-  SensorDataModel, SignalFilters, FilterController, System.Skia;
+  SensorDataModel, SignalFilters, FilterController;
 
 type
   TFormMain = class(TForm)
@@ -43,23 +41,22 @@ type
     CheckShowRaw: TCheckBox;
     CheckShowFiltered: TCheckBox;
     CheckDrawGraph: TCheckBox;
-    BtnAutoEstimateNoise: TButton;
-    CheckShowAllAxes: TCheckBox;
 
     { Grafik Paneli }
     PanelGraph: TPanel;
-    PaintBoxGraph: TSkPaintBox;
+    PaintBoxGraph: TPaintBox;
 
-    { Alt Panel - İstatistikler (TabControl) }
+    { Diyaloglar }
+    OpenDialogCSV: TOpenDialog;
+    SaveDialogCSV: TSaveDialog;
     PanelBottom: TPanel;
     PageControlStats: TPageControl;
     TabSheetStats: TTabSheet;
-    TabSheetNoise: TTabSheet;
     LabelRawStats: TLabel;
     LabelFilteredStats: TLabel;
     LabelNoiseInfo: TLabel;
     LabelLegend: TLabel;
-    { Gürültü Analizi sekmesi }
+    TabSheetNoise: TTabSheet;
     LabelNoiseMAD: TLabel;
     LabelNoiseRMS: TLabel;
     LabelNoiseSNR: TLabel;
@@ -67,21 +64,19 @@ type
     LabelNoiseAlpha: TLabel;
     LabelNoiseSigma: TLabel;
     StatusBar: TStatusBar;
-
-    { Diyaloglar }
-    OpenDialogCSV: TOpenDialog;
-    SaveDialogCSV: TSaveDialog;
+    CheckShowAllAxes: TCheckBox;
+    BtnAutoEstimateNoise: TButton;
 
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure BtnLoadCSVClick(Sender: TObject);
     procedure BtnApplyFilterClick(Sender: TObject);
+    procedure BtnAutoEstimateNoiseClick(Sender: TObject);
     procedure BtnDetectNoiseClick(Sender: TObject);
     procedure BtnExportFilteredClick(Sender: TObject);
     procedure ComboFilterChange(Sender: TObject);
     procedure ComboAxisChange(Sender: TObject);
-    procedure PaintBoxGraphDraw(ASender: TObject; const ACanvas: ISkCanvas;
-      const ADest: TRectF; const AOpacity: Single);
+    procedure PaintBoxGraphPaint(Sender: TObject);
     procedure PaintBoxGraphMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure PaintBoxGraphMouseMove(Sender: TObject; Shift: TShiftState;
@@ -91,7 +86,6 @@ type
     procedure CheckShowRawClick(Sender: TObject);
     procedure CheckShowFilteredClick(Sender: TObject);
     procedure CheckDrawGraphClick(Sender: TObject);
-    procedure BtnAutoEstimateNoiseClick(Sender: TObject);
     procedure CheckShowAllAxesClick(Sender: TObject);
   private
     FController: TFilterController;
@@ -123,14 +117,15 @@ type
     FDisplayMaxVal       : Double;
     FLastPaintWidth      : Integer;
 
+    { Fare kaydırma kısıtlayıcısı }
+    FLastPanMs : Cardinal;
+
     { Çok eksenli görüntüleme önbelleği }
     FDisplayRawDataY    : TArray<Double>;
     FDisplayRawDataZ    : TArray<Double>;
     FDisplayMinValAll   : Double;
     FDisplayMaxValAll   : Double;
 
-    { Fare kaydırma kısıtlayıcısı }
-    FLastPanMs : Cardinal;
 
     { Controller olay işleyicileri }
     procedure OnDataLoaded(Sender: TObject; ARecordCount: Integer);
@@ -149,16 +144,14 @@ type
     function DownsampleLTTBWithIndices(const AData: TArray<Double>;
       MaxPoints: Integer; out Indices: TArray<Integer>): TArray<Double>;
     procedure PrepareDisplayData;
-    function TextBaseline(AFont: ISkFont; ATopY: Single): Single;
-    procedure DrawGraph(ACanvas: ISkCanvas; AWidth, AHeight: Integer);
-    procedure DrawAxisLines(ACanvas: ISkCanvas; AWidth, AHeight: Integer;
+    procedure DrawGraph(ACanvas: TCanvas; AWidth, AHeight: Integer);
+    procedure DrawAxisLines(ACanvas: TCanvas; AWidth, AHeight: Integer;
       AMinVal, AMaxVal: Double);
-    procedure DrawDataSeries(ACanvas: ISkCanvas; const AData: TArray<Double>;
-      AColor: TAlphaColor; AWidth, AHeight: Integer; AMinVal, AMaxVal: Double;
+    procedure DrawDataSeries(ACanvas: TCanvas; const AData: TArray<Double>;
+      AColor: TColor; AWidth, AHeight: Integer; AMinVal, AMaxVal: Double;
       ADrawPoints: Boolean);
-    procedure DrawNoiseMarkers(ACanvas: ISkCanvas;
+    procedure DrawNoiseMarkers(ACanvas: TCanvas;
       AWidth, AHeight: Integer; AMinVal, AMaxVal: Double);
-    procedure DrawMultiAxisGraph(ACanvas: ISkCanvas; AWidth, AHeight: Integer);
     function DataXToScreenX(AIndex, ADataCount, AWidth: Integer): Integer;
     function DataYToScreenY(AValue, AMinVal, AMaxVal: Double; AHeight: Integer): Integer;
     procedure ExportFilteredCSV(const AFileName: string);
@@ -178,11 +171,6 @@ const
     threshold so the auto-disable almost never triggers. }
   LargeDataThreshold = 10000000;
 
-  { Grafik renk sabitleri }
-  COLOR_FILTERED_GREEN : TAlphaColor = $FF008000;  { Koyu yeşil - filtreli veri }
-  COLOR_AXIS_ORANGE    : TAlphaColor = $FFFF8C00;  { Turuncu - Y ekseni }
-  COLOR_AXIS_PURPLE    : TAlphaColor = $FF8B008B;  { Mor - Z ekseni }
-
 { TFormMain }
 
 procedure TFormMain.FormCreate(Sender: TObject);
@@ -197,7 +185,6 @@ begin
   FIsPanning := False;
   FShowRawData := True;
   FShowFilteredData := True;
-  FShowAllAxes := False;
 
   FProcessing    := False;
   FLastPaintWidth := 0;
@@ -426,6 +413,58 @@ begin
   end);
 end;
 
+procedure TFormMain.BtnAutoEstimateNoiseClick(Sender: TObject);
+var
+  Analysis: TNoiseAnalysisResult;
+  AxisName: string;
+  FS: TFormatSettings;
+begin
+  if FController.GetModel.Count = 0 then
+  begin
+    ShowMessage('Önce bir CSV dosyası yükleyin.');
+    Exit;
+  end;
+
+  FS := TFormatSettings.Create;
+  FS.DecimalSeparator := '.';
+
+  Analysis := FController.AnalyzeNoise(FController.GetSelectedAxis);
+
+  case FController.GetSelectedAxis of
+    atX: AxisName := 'X';
+    atY: AxisName := 'Y';
+    atZ: AxisName := 'Z';
+  end;
+
+  { Sigma alanını önerilen çarpanla doldur }
+  EditSigma.Text := Format('%.2f', [Analysis.SuggestedSigma], FS);
+
+  { Gürültü Analizi sekmesini güncelle }
+  LabelNoiseMAD.Caption := Format(
+    'MAD-Sigma [%s]: %.5f', [AxisName, Analysis.MADSigma]);
+  LabelNoiseRMS.Caption := Format(
+    'RMS Gürültü [%s]: %.5f  (Sinyal RMS: %.5f)',
+    [AxisName, Analysis.RMSNoise, Analysis.SignalRMS]);
+  LabelNoiseSNR.Caption := Format(
+    'SNR [%s]: %.1f dB', [AxisName, Analysis.SNR_dB]);
+  LabelNoiseKalman.Caption := Format(
+    'Kalman  R=%.6f  Q=%.6f',
+    [Analysis.SuggestedKalmanR, Analysis.SuggestedKalmanQ]);
+  LabelNoiseAlpha.Caption := Format(
+    #214'nerilen Alpha (LP/'#220'stel): %.3f', [Analysis.SuggestedAlpha]);
+  LabelNoiseSigma.Caption := Format(
+    #214'nerilen Sigma '#199'arpan'#305': %.2f', [Analysis.SuggestedSigma]);
+
+  { Kullanıcıyı Gürültü Analizi sekmesine yönlendir }
+  PageControlStats.ActivePage := TabSheetNoise;
+
+  StatusBar.Panels[0].Text := Format(
+    '[%s] MAD-σ=%.4f | RMS-gürültü=%.4f | SNR=%.1f dB | Önerilen σ×=%.2f',
+    [AxisName, Analysis.MADSigma, Analysis.RMSNoise,
+     Analysis.SNR_dB, Analysis.SuggestedSigma]);
+end;
+
+
 procedure TFormMain.BtnDetectNoiseClick(Sender: TObject);
 var
   FS: TFormatSettings;
@@ -515,59 +554,6 @@ procedure TFormMain.CheckDrawGraphClick(Sender: TObject);
 begin
   { Kullanıcı grafik çizimini açtı/kapattı; durumu hemen yansıt }
   PaintBoxGraph.Invalidate;
-end;
-
-procedure TFormMain.BtnAutoEstimateNoiseClick(Sender: TObject);
-{ MAD + RMS-fark + SNR tabanlı kapsamlı gürültü analizi:
-  tüm metrikleri hesaplar, Gürültü Analizi sekmesini günceller ve öne çeker. }
-var
-  Analysis: TNoiseAnalysisResult;
-  AxisName: string;
-  FS: TFormatSettings;
-begin
-  if FController.GetModel.Count = 0 then
-  begin
-    ShowMessage('Önce bir CSV dosyası yükleyin.');
-    Exit;
-  end;
-
-  FS := TFormatSettings.Create;
-  FS.DecimalSeparator := '.';
-
-  Analysis := FController.AnalyzeNoise(FController.GetSelectedAxis);
-
-  case FController.GetSelectedAxis of
-    atX: AxisName := 'X';
-    atY: AxisName := 'Y';
-    atZ: AxisName := 'Z';
-  end;
-
-  { Sigma alanını önerilen çarpanla doldur }
-  EditSigma.Text := Format('%.2f', [Analysis.SuggestedSigma], FS);
-
-  { Gürültü Analizi sekmesini güncelle }
-  LabelNoiseMAD.Caption := Format(
-    'MAD-Sigma [%s]: %.5f', [AxisName, Analysis.MADSigma]);
-  LabelNoiseRMS.Caption := Format(
-    'RMS Gürültü [%s]: %.5f  (Sinyal RMS: %.5f)',
-    [AxisName, Analysis.RMSNoise, Analysis.SignalRMS]);
-  LabelNoiseSNR.Caption := Format(
-    'SNR [%s]: %.1f dB', [AxisName, Analysis.SNR_dB]);
-  LabelNoiseKalman.Caption := Format(
-    'Kalman  R=%.6f  Q=%.6f',
-    [Analysis.SuggestedKalmanR, Analysis.SuggestedKalmanQ]);
-  LabelNoiseAlpha.Caption := Format(
-    #214'nerilen Alpha (LP/'#220'stel): %.3f', [Analysis.SuggestedAlpha]);
-  LabelNoiseSigma.Caption := Format(
-    #214'nerilen Sigma '#199'arpan'#305': %.2f', [Analysis.SuggestedSigma]);
-
-  { Kullanıcıyı Gürültü Analizi sekmesine yönlendir }
-  PageControlStats.ActivePage := TabSheetNoise;
-
-  StatusBar.Panels[0].Text := Format(
-    '[%s] MAD-σ=%.4f | RMS-gürültü=%.4f | SNR=%.1f dB | Önerilen σ×=%.2f',
-    [AxisName, Analysis.MADSigma, Analysis.RMSNoise,
-     Analysis.SNR_dB, Analysis.SuggestedSigma]);
 end;
 
 procedure TFormMain.CheckShowAllAxesClick(Sender: TObject);
@@ -779,7 +765,7 @@ end;
 { Rebuild the downsampled display cache.
   Must be called on the main thread after data changes or axis switches. }
 procedure TFormMain.PrepareDisplayData;
-var
+ var
   RawData, FilteredData: TArray<Double>;
   RawDataY, RawDataZ: TArray<Double>;
   NoiseData: TArray<Boolean>;
@@ -881,207 +867,160 @@ begin
   end;
 end;
 
-procedure TFormMain.PaintBoxGraphDraw(ASender: TObject; const ACanvas: ISkCanvas;
-  const ADest: TRectF; const AOpacity: Single);
+procedure TFormMain.PaintBoxGraphPaint(Sender: TObject);
 begin
-  DrawGraph(ACanvas, Round(ADest.Width), Round(ADest.Height));
+  DrawGraph(PaintBoxGraph.Canvas, PaintBoxGraph.Width, PaintBoxGraph.Height);
 end;
 
-{ Skia text için: VCL TextOut'un üst-sol Y koordinatını Skia taban çizgisine dönüştür }
-function TFormMain.TextBaseline(AFont: ISkFont; ATopY: Single): Single;
-var
-  Metrics: TSkFontMetrics;
+procedure TFormMain.DrawGraph(ACanvas: TCanvas; AWidth, AHeight: Integer);
 begin
-  AFont.GetMetrics(Metrics);
-  { Skia'da fAscent, taban çizgisinin ÜSTÜNDEKI mesafeyi negatif sayı olarak verir
-    (örn. -7.5). Üst-sol Y'den taban Y'ye dönüşüm: taban = üst + (-fAscent) = üst - fAscent }
-  Result := ATopY - Metrics.Ascent;
-end;
-
-procedure TFormMain.DrawGraph(ACanvas: ISkCanvas; AWidth, AHeight: Integer);
-var
-  LPaint: ISkPaint;
-  LFont: ISkFont;
-  LTitleText: string;
-begin
-  { Arka plan temizle }
-  ACanvas.Clear(TAlphaColors.White);
-
-  LPaint := TSkPaint.Create;
-  LPaint.AntiAlias := True;
-  LPaint.Style := TSkPaintStyle.Fill;
+  { Arka plan }
+  ACanvas.Brush.Color := clWhite;
+  ACanvas.FillRect(Rect(0, 0, AWidth, AHeight));
 
   if FController.GetModel.Count = 0 then
   begin
-    LFont := TSkFont.Create(nil, 12);
-    LPaint.Color := TAlphaColors.Gray;
-    ACanvas.DrawSimpleText('CSV dosyası yükleyin...',
-      AWidth div 2 - 120, TextBaseline(LFont, AHeight div 2 - 10), LFont, LPaint);
+    ACanvas.Font.Size  := 12;
+    ACanvas.Font.Color := clGray;
+    ACanvas.TextOut(AWidth div 2 - 120, AHeight div 2 - 10,
+      'CSV dosyası yükleyin...');
     Exit;
   end;
 
+  { Grafik çizimi kapalıysa bilgi mesajı göster }
   if not CheckDrawGraph.Checked then
   begin
-    LFont := TSkFont.Create(nil, 11);
-    LPaint.Color := TAlphaColors.Gray;
-    ACanvas.DrawSimpleText(
-      'Grafik çizimi kapalı — "Grafik Çiz" seçeneğini işaretleyin.',
-      AWidth div 2 - 210, TextBaseline(LFont, AHeight div 2 - 10), LFont, LPaint);
+    ACanvas.Font.Size  := 11;
+    ACanvas.Font.Color := clGray;
+    ACanvas.TextOut(AWidth div 2 - 210, AHeight div 2 - 10,
+      'Grafik çizimi kapalı — "Grafik Çiz" seçeneğini işaretleyin.');
     Exit;
   end;
 
+  { Ekran genişliği değiştiyse (pencere boyutu) önbelleği yenile.
+    İşlem sürerken yenileme yapma — eski veriyle çizmeye devam et. }
   if (AWidth <> FLastPaintWidth) and not FProcessing then
     PrepareDisplayData;
 
   if Length(FDisplayRawData) = 0 then
     Exit;
 
-  if FShowAllAxes then
-    DrawMultiAxisGraph(ACanvas, AWidth, AHeight)
-  else
-  begin
-    DrawAxisLines(ACanvas, AWidth, AHeight, FDisplayMinVal, FDisplayMaxVal);
+  { Eksen çizgileri (önbellekten min/max değerleri kullan) }
+  DrawAxisLines(ACanvas, AWidth, AHeight, FDisplayMinVal, FDisplayMaxVal);
 
-    { Filtreli veri — koyu yeşil }
-    if FShowFilteredData and (Length(FDisplayFilteredData) > 0) then
-      DrawDataSeries(ACanvas, FDisplayFilteredData, COLOR_FILTERED_GREEN,
-        AWidth, AHeight, FDisplayMinVal, FDisplayMaxVal, False);
+  { Filtrelenmiş veri — yeşil }
+  if FShowFilteredData and (Length(FDisplayFilteredData) > 0) then
+    DrawDataSeries(ACanvas, FDisplayFilteredData, clGreen, AWidth, AHeight,
+      FDisplayMinVal, FDisplayMaxVal, False);
 
-    { Ham veri — mavi; küçük setlerde nokta da çiz }
-    if FShowRawData then
-      DrawDataSeries(ACanvas, FDisplayRawData, TAlphaColors.Blue,
-        AWidth, AHeight, FDisplayMinVal, FDisplayMaxVal,
-        Length(FDisplayRawData) <= 500);
+  { Ham veri — mavi; küçük setlerde nokta da çiz }
+  if FShowRawData then
+    DrawDataSeries(ACanvas, FDisplayRawData, clBlue, AWidth, AHeight,
+      FDisplayMinVal, FDisplayMaxVal, Length(FDisplayRawData) <= 500);
 
-    { Gürültü noktaları — kırmızı işaretler }
-    DrawNoiseMarkers(ACanvas, AWidth, AHeight, FDisplayMinVal, FDisplayMaxVal);
-  end;
+  { Gürültü noktaları — kırmızı (önbellekten bayrak dizisi) }
+  DrawNoiseMarkers(ACanvas, AWidth, AHeight, FDisplayMinVal, FDisplayMaxVal);
 
   { Başlık }
-  LFont := TSkFont.Create(nil, 9);
-  LFont.Embolden := True;
-  LPaint.Color := TAlphaColors.Black;
-  LTitleText := Format('Sensör Verisi Grafiği — %d nokta (%d görüntüleniyor)',
-    [FController.GetModel.Count, Length(FDisplayRawData)]);
-  ACanvas.DrawSimpleText(LTitleText,
-    FGraphMarginLeft + 5, TextBaseline(LFont, 3), LFont, LPaint);
+  ACanvas.Font.Size  := 9;
+  ACanvas.Font.Color := clBlack;
+  ACanvas.Font.Style := [fsBold];
+  ACanvas.TextOut(FGraphMarginLeft + 5, 3,
+    Format('Sensör Verisi Grafiği — %d nokta (%d görüntüleniyor)',
+      [FController.GetModel.Count, Length(FDisplayRawData)]));
+  ACanvas.Font.Style := [];
 end;
 
-procedure TFormMain.DrawAxisLines(ACanvas: ISkCanvas; AWidth, AHeight: Integer;
+procedure TFormMain.DrawAxisLines(ACanvas: TCanvas; AWidth, AHeight: Integer;
   AMinVal, AMaxVal: Double);
 var
   GraphLeft, GraphRight, GraphTop, GraphBottom: Integer;
-  I, NumTicks, YPos: Integer;
+  I, NumTicks: Integer;
   Val: Double;
-  LStrokePaint, LDashPaint, LTextPaint: ISkPaint;
-  LFont: ISkFont;
-  DashIntervals: TArray<Single>;
+  YPos: Integer;
 begin
-  GraphLeft   := FGraphMarginLeft;
-  GraphRight  := AWidth - FGraphMarginRight;
-  GraphTop    := FGraphMarginTop;
+  GraphLeft := FGraphMarginLeft;
+  GraphRight := AWidth - FGraphMarginRight;
+  GraphTop := FGraphMarginTop;
   GraphBottom := AHeight - FGraphMarginBottom;
 
-  LFont := TSkFont.Create(nil, 7);
-
   { Çerçeve }
-  LStrokePaint := TSkPaint.Create;
-  LStrokePaint.Style := TSkPaintStyle.Stroke;
-  LStrokePaint.Color := TAlphaColors.Silver;
-  LStrokePaint.StrokeWidth := 1;
-  ACanvas.DrawRect(TRectF.Create(GraphLeft, GraphTop, GraphRight, GraphBottom), LStrokePaint);
+  ACanvas.Pen.Color := clSilver;
+  ACanvas.Pen.Width := 1;
+  ACanvas.Rectangle(GraphLeft, GraphTop, GraphRight, GraphBottom);
 
-  { Kesik çizgili kılavuz çizgileri }
-  SetLength(DashIntervals, 2);
-  DashIntervals[0] := 4;
-  DashIntervals[1] := 4;
-  LDashPaint := TSkPaint.Create;
-  LDashPaint.Style := TSkPaintStyle.Stroke;
-  LDashPaint.Color := $FFF0F0F0;
-  LDashPaint.StrokeWidth := 1;
-  LDashPaint.PathEffect := TSkPathEffect.MakeDash(DashIntervals, 0);
-
-  { Etiket boya }
-  LTextPaint := TSkPaint.Create;
-  LTextPaint.AntiAlias := True;
-  LTextPaint.Style := TSkPaintStyle.Fill;
-  LTextPaint.Color := TAlphaColors.Gray;
-
+  { Y ekseni etiketleri }
+  ACanvas.Font.Size := 7;
+  ACanvas.Font.Color := clGray;
   NumTicks := 8;
+
   for I := 0 to NumTicks do
   begin
-    Val  := AMinVal + (AMaxVal - AMinVal) * I / NumTicks;
+    Val := AMinVal + (AMaxVal - AMinVal) * I / NumTicks;
     YPos := DataYToScreenY(Val, AMinVal, AMaxVal, AHeight);
 
     { Yatay kılavuz çizgisi }
-    ACanvas.DrawLine(GraphLeft, YPos, GraphRight, YPos, LDashPaint);
+    ACanvas.Pen.Color := $00F0F0F0;
+    ACanvas.Pen.Style := psDot;
+    ACanvas.MoveTo(GraphLeft, YPos);
+    ACanvas.LineTo(GraphRight, YPos);
+    ACanvas.Pen.Style := psSolid;
 
-    { Y ekseni etiketi }
-    ACanvas.DrawSimpleText(Format('%.2f', [Val]),
-      2, TextBaseline(LFont, YPos - 6), LFont, LTextPaint);
+    { Etiket }
+    ACanvas.TextOut(2, YPos - 6, Format('%.2f', [Val]));
   end;
 end;
 
-procedure TFormMain.DrawDataSeries(ACanvas: ISkCanvas; const AData: TArray<Double>;
-  AColor: TAlphaColor; AWidth, AHeight: Integer; AMinVal, AMaxVal: Double;
+procedure TFormMain.DrawDataSeries(ACanvas: TCanvas; const AData: TArray<Double>;
+  AColor: TColor; AWidth, AHeight: Integer; AMinVal, AMaxVal: Double;
   ADrawPoints: Boolean);
 var
   I, N: Integer;
-  Pts: TArray<TPointF>;
-  LPaint: ISkPaint;
-  LBuilder: ISkPathBuilder;
-  LPath: ISkPath;
+  Points: array of TPoint;
 begin
   N := Length(AData);
   if N < 2 then
     Exit;
 
-  { Skia path olarak poliyhat: tek DrawPath çağrısıyla çizilir }
-  SetLength(Pts, N);
+  { Pre-build the full point array, then issue a single Polyline GDI call.
+    This is orders of magnitude faster than N individual LineTo calls. }
+  SetLength(Points, N);
   for I := 0 to N - 1 do
   begin
-    Pts[I].X := DataXToScreenX(I, N, AWidth);
-    Pts[I].Y := DataYToScreenY(AData[I], AMinVal, AMaxVal, AHeight);
+    Points[I].X := DataXToScreenX(I, N, AWidth);
+    Points[I].Y := DataYToScreenY(AData[I], AMinVal, AMaxVal, AHeight);
   end;
 
-  LPaint := TSkPaint.Create;
-  LPaint.AntiAlias := True;
-  LPaint.Color := AColor;
-  LPaint.Style := TSkPaintStyle.Stroke;
-  LPaint.StrokeWidth := 1;
+  ACanvas.Pen.Color := AColor;
+  ACanvas.Pen.Width := 1;
+  Winapi.Windows.Polyline(ACanvas.Handle, Points[0], N);
 
-  LBuilder := TSkPathBuilder.Create;
-  LBuilder.MoveTo(Pts[0].X, Pts[0].Y);
-  for I := 1 to N - 1 do
-    LBuilder.LineTo(Pts[I].X, Pts[I].Y);
-  LPath := LBuilder.Detach;
-
-  ACanvas.DrawPath(LPath, LPaint);
-
+  { Draw individual data-point markers only for small datasets }
   if ADrawPoints then
   begin
-    LPaint.Style := TSkPaintStyle.Fill;
+    ACanvas.Brush.Color := AColor;
+    ACanvas.Pen.Color   := AColor;
     for I := 0 to N - 1 do
-      ACanvas.DrawCircle(Pts[I].X, Pts[I].Y, 3, LPaint);
+      ACanvas.Ellipse(Points[I].X - 3, Points[I].Y - 3,
+                      Points[I].X + 3, Points[I].Y + 3);
   end;
 end;
 
-procedure TFormMain.DrawNoiseMarkers(ACanvas: ISkCanvas;
+procedure TFormMain.DrawNoiseMarkers(ACanvas: TCanvas;
   AWidth, AHeight: Integer; AMinVal, AMaxVal: Double);
 var
   I, N, X1, Y1: Integer;
-  LPaint: ISkPaint;
 begin
   N := Length(FDisplayNoiseFlags);
   if (N = 0) or (Length(FDisplayRawData) < N) then
     Exit;
 
-  LPaint := TSkPaint.Create;
-  LPaint.AntiAlias := True;
-  LPaint.StrokeWidth := 2;
+  ACanvas.Brush.Color := clRed;
+  ACanvas.Pen.Color   := clMaroon;
+  ACanvas.Pen.Width   := 2;
 
-  { FDisplayNoiseFlags, LTTB örneklenmiş FDisplayRawData ile hizalı.
-    Model.GetRecord döngüsü yok — O(1) sabit maliyet. }
+  { FDisplayNoiseFlags is already aligned to FDisplayRawData (LTTB-sampled).
+    No Model.GetRecord call in the loop — zero O(N) overhead here. }
   for I := 0 to N - 1 do
   begin
     if FDisplayNoiseFlags[I] then
@@ -1089,62 +1028,15 @@ begin
       X1 := DataXToScreenX(I, N, AWidth);
       Y1 := DataYToScreenY(FDisplayRawData[I], AMinVal, AMaxVal, AHeight);
 
-      { Çember çiz }
-      LPaint.Style := TSkPaintStyle.Stroke;
-      LPaint.Color := TAlphaColors.Maroon;
-      ACanvas.DrawCircle(X1, Y1, 6, LPaint);
-
-      { Çarpı işareti }
-      ACanvas.DrawLine(X1 - 5, Y1 - 5, X1 + 5, Y1 + 5, LPaint);
-      ACanvas.DrawLine(X1 + 5, Y1 - 5, X1 - 5, Y1 + 5, LPaint);
+      ACanvas.Ellipse(X1 - 6, Y1 - 6, X1 + 6, Y1 + 6);
+      ACanvas.MoveTo(X1 - 5, Y1 - 5);
+      ACanvas.LineTo(X1 + 5, Y1 + 5);
+      ACanvas.MoveTo(X1 + 5, Y1 - 5);
+      ACanvas.LineTo(X1 - 5, Y1 + 5);
     end;
   end;
-end;
 
-procedure TFormMain.DrawMultiAxisGraph(ACanvas: ISkCanvas; AWidth, AHeight: Integer);
-{ Tüm 3 ekseni farklı renklerde aynı grafikte çizer.
-  X = Mavi | Y = Turuncu ($FFFF8C00) | Z = Mor ($FF8B008B) }
-var
-  LTextPaint: ISkPaint;
-  LFont: ISkFont;
-  LegendX: Single;
-begin
-  DrawAxisLines(ACanvas, AWidth, AHeight, FDisplayMinValAll, FDisplayMaxValAll);
-
-  { Z ekseni — mor (arka planda) }
-  if Length(FDisplayRawDataZ) > 0 then
-    DrawDataSeries(ACanvas, FDisplayRawDataZ, COLOR_AXIS_PURPLE,
-      AWidth, AHeight, FDisplayMinValAll, FDisplayMaxValAll, False);
-
-  { Y ekseni — turuncu }
-  if Length(FDisplayRawDataY) > 0 then
-    DrawDataSeries(ACanvas, FDisplayRawDataY, COLOR_AXIS_ORANGE,
-      AWidth, AHeight, FDisplayMinValAll, FDisplayMaxValAll, False);
-
-  { X ekseni — mavi (ön planda) }
-  if Length(FDisplayRawData) > 0 then
-    DrawDataSeries(ACanvas, FDisplayRawData, TAlphaColors.Blue,
-      AWidth, AHeight, FDisplayMinValAll, FDisplayMaxValAll, False);
-
-  { Köşe açıklaması }
-  LFont := TSkFont.Create(nil, 9);
-  LTextPaint := TSkPaint.Create;
-  LTextPaint.AntiAlias := True;
-  LTextPaint.Style := TSkPaintStyle.Fill;
-
-  LegendX := AWidth - 115;
-
-  LTextPaint.Color := TAlphaColors.Blue;
-  ACanvas.DrawSimpleText('— X Ekseni',
-    LegendX, TextBaseline(LFont, FGraphMarginTop + 2), LFont, LTextPaint);
-
-  LTextPaint.Color := COLOR_AXIS_ORANGE;
-  ACanvas.DrawSimpleText('— Y Ekseni',
-    LegendX, TextBaseline(LFont, FGraphMarginTop + 16), LFont, LTextPaint);
-
-  LTextPaint.Color := COLOR_AXIS_PURPLE;
-  ACanvas.DrawSimpleText('— Z Ekseni',
-    LegendX, TextBaseline(LFont, FGraphMarginTop + 30), LFont, LTextPaint);
+  ACanvas.Pen.Width := 1;
 end;
 
 function TFormMain.DataXToScreenX(AIndex, ADataCount, AWidth: Integer): Integer;
@@ -1220,8 +1112,6 @@ end;
 { =================== Dışa Aktarma =================== }
 
 procedure TFormMain.ExportFilteredCSV(const AFileName: string);
-{ Sadece filtre edilmiş veriyi .csv formatında kaydeder.
-  Sütunlar: serialNumber, x_filtered, y_filtered, z_filtered }
 var
   SL: TStringList;
   I: Integer;
@@ -1246,13 +1136,18 @@ begin
 
   SL := TStringList.Create;
   try
-    SL.Add('"serialNumber","x_filtered","y_filtered","z_filtered"');
+    SL.Add('"serialNumber","x_raw","y_raw","z_raw","x_filtered","y_filtered","z_filtered","isNoiseX","isNoiseY","isNoiseZ"');
 
     for I := 0 to Model.Count - 1 do
     begin
       Rec := Model.GetRecord(I);
-      SL.Add(Format('"%s","%.5f","%.5f","%.5f"',
-        [Rec.SerialNumber, FX[I], FY[I], FZ[I]], FS));
+      SL.Add(Format('"%s","%.5f","%.5f","%.5f","%.5f","%.5f","%.5f","%s","%s","%s"',
+        [Rec.SerialNumber,
+         Rec.X, Rec.Y, Rec.Z,
+         FX[I], FY[I], FZ[I],
+         BoolToStr(Rec.IsNoiseX, True),
+         BoolToStr(Rec.IsNoiseY, True),
+         BoolToStr(Rec.IsNoiseZ, True)], FS));
     end;
 
     SL.SaveToFile(AFileName, TEncoding.UTF8);

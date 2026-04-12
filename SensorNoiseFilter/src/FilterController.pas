@@ -1,9 +1,9 @@
-{ ============================================================================
+﻿ { ============================================================================
   FilterController.pas - Controller Katmanı
-  
+
   Model ve View arasındaki koordinasyonu sağlar. CSV yükleme, filtre uygulama,
   gürültü tespiti ve görselleştirme güncellemelerini yönetir.
-  
+
   MVC Mimarisi: CONTROLLER
   ============================================================================ }
 unit FilterController;
