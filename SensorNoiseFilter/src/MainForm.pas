@@ -39,6 +39,7 @@ type
     BtnExportFiltered: TButton;
     CheckShowRaw: TCheckBox;
     CheckShowFiltered: TCheckBox;
+    CheckDrawGraph: TCheckBox;
 
     { Grafik Paneli }
     PanelGraph: TPanel;
@@ -75,6 +76,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure CheckShowRawClick(Sender: TObject);
     procedure CheckShowFilteredClick(Sender: TObject);
+    procedure CheckDrawGraphClick(Sender: TObject);
   private
     FController: TFilterController;
 
@@ -123,6 +125,9 @@ var
 implementation
 
 {$R *.dfm}
+
+const
+  LargeDataThreshold = 50000; { Bu sayıdan fazla kayıt "büyük veri seti" sayılır }
 
 { TFormMain }
 
@@ -278,6 +283,8 @@ begin
       on E: Exception do
         ShowMessage('CSV yükleme hatası: ' + E.Message);
     end;
+    { Tüm yükleme ve otomatik gürültü tespiti bitti; grafiği güncelle }
+    PaintBoxGraph.Invalidate;
   end;
 end;
 
@@ -286,7 +293,9 @@ begin
   FController.SetFilterParams(ReadFilterParams);
   FController.SelectFilter(TFilterType(ComboFilter.ItemIndex));
   FController.ApplyFilter;
-  PaintBoxGraph.Invalidate;
+  { Tüm filtre işlemleri bitti; grafik seçili ise çiz }
+  if CheckDrawGraph.Checked then
+    PaintBoxGraph.Invalidate;
 end;
 
 procedure TFormMain.BtnDetectNoiseClick(Sender: TObject);
@@ -298,7 +307,9 @@ begin
   FS.DecimalSeparator := '.';
   Sigma := StrToFloatDef(EditSigma.Text, 2.0, FS);
   FController.DetectNoise(Sigma);
-  PaintBoxGraph.Invalidate;
+  { Tüm gürültü tespiti bitti; grafik seçili ise çiz }
+  if CheckDrawGraph.Checked then
+    PaintBoxGraph.Invalidate;
 end;
 
 procedure TFormMain.BtnExportFilteredClick(Sender: TObject);
@@ -326,18 +337,27 @@ begin
     2: FController.SelectAxis(atZ);
   end;
   FController.UpdateStatistics;
-  PaintBoxGraph.Invalidate;
+  if CheckDrawGraph.Checked then
+    PaintBoxGraph.Invalidate;
 end;
 
 procedure TFormMain.CheckShowRawClick(Sender: TObject);
 begin
   FShowRawData := CheckShowRaw.Checked;
-  PaintBoxGraph.Invalidate;
+  if CheckDrawGraph.Checked then
+    PaintBoxGraph.Invalidate;
 end;
 
 procedure TFormMain.CheckShowFilteredClick(Sender: TObject);
 begin
   FShowFilteredData := CheckShowFiltered.Checked;
+  if CheckDrawGraph.Checked then
+    PaintBoxGraph.Invalidate;
+end;
+
+procedure TFormMain.CheckDrawGraphClick(Sender: TObject);
+begin
+  { Kullanıcı grafik çizimini açtı/kapattı; durumu hemen yansıt }
   PaintBoxGraph.Invalidate;
 end;
 
@@ -347,13 +367,21 @@ procedure TFormMain.OnDataLoaded(Sender: TObject; ARecordCount: Integer);
 begin
   StatusBar.Panels[1].Text := Format('Kayıt: %d', [ARecordCount]);
   FOffsetX := 0;
-  PaintBoxGraph.Invalidate;
+
+  { Büyük veri setlerinde grafik çizimini otomatik kapat }
+  if ARecordCount >= LargeDataThreshold then
+  begin
+    CheckDrawGraph.Checked := False;
+    StatusBar.Panels[0].Text :=
+      Format('Yüklendi: %d kayıt (büyük veri seti — grafik otomatik kapatıldı)', [ARecordCount]);
+  end
+  else
+    StatusBar.Panels[0].Text := Format('Toplam %d kayıt yüklendi.', [ARecordCount]);
 end;
 
 procedure TFormMain.OnFilterApplied(Sender: TObject; AFilterName: string);
 begin
   StatusBar.Panels[2].Text := AFilterName;
-  PaintBoxGraph.Invalidate;
 end;
 
 procedure TFormMain.OnNoiseDetected(Sender: TObject; ANoiseCountX, ANoiseCountY, ANoiseCountZ: Integer);
@@ -362,7 +390,6 @@ begin
     'Gürültü Noktaları: X=%d, Y=%d, Z=%d (Sigma x%.1f)',
     [ANoiseCountX, ANoiseCountY, ANoiseCountZ,
      FController.GetModel.NoiseSigmaMultiplier]);
-  PaintBoxGraph.Invalidate;
 end;
 
 procedure TFormMain.OnStatusMessage(Sender: TObject; const AMessage: string);
@@ -421,6 +448,16 @@ begin
     ACanvas.Font.Color := clGray;
     ACanvas.TextOut(AWidth div 2 - 120, AHeight div 2 - 10,
       'CSV dosyası yükleyin...');
+    Exit;
+  end;
+
+  { Grafik çizimi kapalıysa bilgi mesajı göster }
+  if not CheckDrawGraph.Checked then
+  begin
+    ACanvas.Font.Size := 11;
+    ACanvas.Font.Color := clGray;
+    ACanvas.TextOut(AWidth div 2 - 210, AHeight div 2 - 10,
+      'Grafik çizimi kapalı — "Grafik Çiz" seçeneğini işaretleyin.');
     Exit;
   end;
 

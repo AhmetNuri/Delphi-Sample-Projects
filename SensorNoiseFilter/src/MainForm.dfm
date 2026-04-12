@@ -179,6 +179,17 @@ object FormMain: TFormMain
       TabOrder = 11
       OnClick = CheckShowFilteredClick
     end
+    object CheckDrawGraph: TCheckBox
+      Left = 660
+      Top = 74
+      Width = 115
+      Height = 17
+      Caption = 'Grafik '#199'iz'
+      Checked = True
+      State = cbChecked
+      TabOrder = 12
+      OnClick = CheckDrawGraphClick
+    end
   end
   object PanelGraph: TPanel
     Left = 0
