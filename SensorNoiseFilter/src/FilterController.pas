@@ -16,6 +16,28 @@ uses
   SensorDataModel, SignalFilters;
 
 type
+  { Kapsamlı gürültü analizi sonuç kaydı.
+
+    Üç tamamlayıcı yöntem kullanılır:
+      1. MAD-Sigma   : Aykırı değerlere dayanıklı, tüm gürültü tahmini.
+      2. RMS-Noise   : Birinci fark yöntemi ile yüksek-frekanslı gürültü.
+      3. SNR          : Sinyal güç / gürültü güç oranı (dB).
+
+    Bunların yanı sıra, hesaplanan değerlerden otomatik Kalman Q/R ve sigma
+    çarpanı önerileri türetilir. }
+  TNoiseAnalysisResult = record
+    MADSigma         : Double;  { MAD-tabanlı gürültü sigma tahmini }
+    RMSNoise         : Double;  { Birinci-fark RMS gürültüsü: std(Δx)/√2 }
+    SignalRMS        : Double;  { Sinyalin RMS büyüklüğü (ortalama çıkarılmış) }
+    SNR_dB           : Double;  { Sinyal-Gürültü Oranı (dB): 20·log10(SignalRMS/RMSNoise) }
+    NoiseVariance    : Double;  { RMSNoise² — Kalman R başlangıç değeri }
+    SuggestedSigma   : Double;  { Önerilen sigma çarpanı (gürültü tespiti için) }
+    SuggestedKalmanR : Double;  { Önerilen Kalman ölçüm gürültüsü kovaryansı }
+    SuggestedKalmanQ : Double;  { Önerilen Kalman süreç gürültüsü kovaryansı }
+    SuggestedAlpha   : Double;  { Önerilen alçak-geçiş / üstel-düzeltme alpha değeri }
+    SampleCount      : Integer; { Analize dahil edilen örnek sayısı }
+  end;
+
   { View'a bildirim göndermek için olay tipleri }
   TDataLoadedEvent = procedure(Sender: TObject; ARecordCount: Integer) of object;
   TFilterAppliedEvent = procedure(Sender: TObject; AFilterName: string) of object;
@@ -81,6 +103,9 @@ type
     { Seçili eksen için önerilen sigma çarpanını hesapla }
     function GetSuggestedSigmaMultiplier(AAxis: TAxisType): Double;
 
+    { Kapsamlı gürültü analizi - çoklu yöntem (MAD, RMS-fark, SNR, öneri) }
+    function AnalyzeNoise(AAxis: TAxisType): TNoiseAnalysisResult;
+
     { Olaylar }
     property OnDataLoaded: TDataLoadedEvent read FOnDataLoaded write FOnDataLoaded;
     property OnFilterApplied: TFilterAppliedEvent read FOnFilterApplied write FOnFilterApplied;
@@ -103,6 +128,11 @@ const
 
   { Normal dağılımın %95 güven aralığı z-değeri }
   NORMAL_DIST_95_PERCENTILE = 1.96;
+
+  { AnalyzeNoise: sinyal ve gürültünün ihmal edilebilir küçüklükte olduğu
+    dejenere durumlarda kullanılan varsayılan alçak-geçiş alpha değeri.
+    0.1 seçimi pratik bir orta-nokta (ne çok hızlı ne çok yavaş) sağlar. }
+  DEFAULT_ANALYSIS_ALPHA = 0.1;
 
 { TFilterController }
 
@@ -376,6 +406,103 @@ begin
     NORMAL_DIST_95_PERCENTILE * MADSigma / SampleStdDev,
     MIN_SIGMA_MULTIPLIER,
     MAX_SIGMA_MULTIPLIER);
+end;
+
+function TFilterController.AnalyzeNoise(AAxis: TAxisType): TNoiseAnalysisResult;
+{ Kapsamlı sensör iç gürültüsü analizi.
+
+  Yöntem 1 — MAD-Sigma (tüm veri üzerinde, aykırı değerlere dayanıklı)
+    sigma_MAD = 1.4826 × median(|x − median(x)|)
+
+  Yöntem 2 — Birinci-Fark RMS Gürültüsü (yüksek-frekanslı gürültü tahmini)
+    Birinci fark d[n] = x[n] − x[n-1] alındığında, iki bağımsız beyaz-gürültü
+    örneğinin farkı olduğundan varyansı 2·σ²_noise olur.
+    → σ_noise_rms = std(d) / sqrt(2)
+    Bu yöntem sinyalin DC veya alçak-frekanslı bileşenlerine duyarsızdır.
+
+  Yöntem 3 — SNR (dB)
+    Sinyal RMS'i (ortalama çıkarıldıktan sonra) ile gürültü RMS'i oranından:
+    SNR_dB = 20 × log10(SignalRMS / RMSNoise)
+    Gürültü ≥ sinyal ise SNR ≤ 0 dB olarak döner.
+
+  Öneriler
+    KalmanR  : Gürültü varyansı (σ²_noise) — ölçüm gürültüsü kovaryansı
+    KalmanQ  : Dinamik değişim hızına göre ölçeklenir: Q = R × 0.001
+    Alpha    : Kesim frekansı temsili: α ≈ RMSNoise / (RMSNoise + SignalRMS)
+    SigmaCharpani: GetSuggestedSigmaMultiplier() ile zaten hesaplanır }
+var
+  RawData : TArray<Double>;
+  N, I    : Integer;
+  { Ortalama }
+  Sum, Mean: Double;
+  { Sinyal RMS }
+  SumSq, SigRMS: Double;
+  { Birinci fark }
+  DiffMean, DiffSumSq, DiffStd, RMSNoise: Double;
+begin
+  Result := Default(TNoiseAnalysisResult);
+
+  RawData := FModel.GetAxisData(AAxis);
+  N := Length(RawData);
+  Result.SampleCount := N;
+
+  if N < 4 then
+    Exit;
+
+  { --- Ortalama --- }
+  Sum := 0;
+  for I := 0 to N - 1 do
+    Sum := Sum + RawData[I];
+  Mean := Sum / N;
+
+  { --- Sinyal RMS (ortalama çıkarılmış) --- }
+  SumSq := 0;
+  for I := 0 to N - 1 do
+    SumSq := SumSq + Sqr(RawData[I] - Mean);
+  SigRMS := Sqrt(SumSq / N);
+  Result.SignalRMS := SigRMS;
+
+  { --- Yöntem 1: MAD-Sigma --- }
+  Result.MADSigma := EstimateNoiseSigmaMAD(AAxis);
+
+  { --- Yöntem 2: Birinci-Fark RMS Gürültüsü --- }
+  { d[n] = x[n] - x[n-1]; N-1 fark noktası }
+  DiffMean := 0;
+  for I := 1 to N - 1 do
+    DiffMean := DiffMean + (RawData[I] - RawData[I - 1]);
+  DiffMean := DiffMean / (N - 1);
+
+  DiffSumSq := 0;
+  for I := 1 to N - 1 do
+    DiffSumSq := DiffSumSq + Sqr((RawData[I] - RawData[I - 1]) - DiffMean);
+
+  DiffStd := Sqrt(DiffSumSq / (N - 2));
+  { Bölen: fark dizisindeki N-1 örnekten biri serbestlik derecesi için
+    çıkarılır → N-1-1 = N-2. Beyaz gürültü varsayımında σ²_diff = 2·σ²_noise. }
+  RMSNoise := DiffStd / Sqrt(2.0);        { Beyaz gürültü varsayımı }
+
+  if RMSNoise < 1E-12 then
+    RMSNoise := 1E-12;
+  Result.RMSNoise := RMSNoise;
+
+  { --- Yöntem 3: SNR --- }
+  if (SigRMS > 1E-12) and (RMSNoise > 1E-12) then
+    Result.SNR_dB := 20.0 * Log10(SigRMS / RMSNoise)
+  else
+    Result.SNR_dB := 0;
+
+  { --- Türetilmiş Öneriler --- }
+  Result.NoiseVariance    := Sqr(RMSNoise);
+  Result.SuggestedKalmanR := Max(1E-6, Result.NoiseVariance);
+  { Q tipik olarak R'ın binde biri kadar küçük tutulur }
+  Result.SuggestedKalmanQ := Max(1E-9, Result.SuggestedKalmanR * 0.001);
+  { α ≈ gürültü / (gürültü + sinyal): küçük gürültüde alpha küçük kalır → daha fazla düzeltme }
+  if (RMSNoise + SigRMS) > 1E-12 then
+    Result.SuggestedAlpha := EnsureRange(RMSNoise / (RMSNoise + SigRMS), 0.01, 0.99)
+  else
+    Result.SuggestedAlpha := DEFAULT_ANALYSIS_ALPHA;
+
+  Result.SuggestedSigma := GetSuggestedSigmaMultiplier(AAxis);
 end;
 
 end.
