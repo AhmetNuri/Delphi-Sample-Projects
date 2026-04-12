@@ -190,6 +190,24 @@ object FormMain: TFormMain
       TabOrder = 12
       OnClick = CheckDrawGraphClick
     end
+    object BtnAutoEstimateNoise: TButton
+      Left = 782
+      Top = 69
+      Width = 130
+      Height = 25
+      Caption = 'Otomatik Tahmin'
+      TabOrder = 13
+      OnClick = BtnAutoEstimateNoiseClick
+    end
+    object CheckShowAllAxes: TCheckBox
+      Left = 920
+      Top = 74
+      Width = 125
+      Height = 17
+      Caption = 'T'#252'm Eksenleri G'#246'ster'
+      TabOrder = 14
+      OnClick = CheckShowAllAxesClick
+    end
   end
   object PanelGraph: TPanel
     Left = 0
@@ -200,13 +218,13 @@ object FormMain: TFormMain
     BevelOuter = bvNone
     Caption = ''
     TabOrder = 1
-    object PaintBoxGraph: TPaintBox
+    object PaintBoxGraph: TSkPaintBox
       Left = 0
       Top = 0
       Width = 1050
       Height = 430
       Align = alClient
-      OnPaint = PaintBoxGraphPaint
+      OnDraw = PaintBoxGraphDraw
       OnMouseDown = PaintBoxGraphMouseDown
       OnMouseMove = PaintBoxGraphMouseMove
       OnMouseUp = PaintBoxGraphMouseUp
@@ -285,7 +303,7 @@ object FormMain: TFormMain
         Top = 95
         Width = 300
         Height = 13
-        Caption = 'Renk: Mavi = Ham Veri | Ye'#351'il = Filtreli | K'#305'rm'#305'z'#305' = G'#252'r'#252'lt'#252' Noktas'#305
+        Caption = 'Renk: Mavi = Ham Veri | Ye'#351'il = Filtreli | K'#305'rm'#305'z'#305' = G'#252'r'#252'lt'#252' | (T'#252'm Eksen: Mavi=X, Turuncu=Y, Mor=Z)'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -11

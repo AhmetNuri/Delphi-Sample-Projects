@@ -11,7 +11,9 @@ unit FilterController;
 interface
 
 uses
-  System.SysUtils, System.Classes, SensorDataModel, SignalFilters;
+  System.SysUtils, System.Classes, System.Math,
+  System.Generics.Collections, System.Generics.Defaults,
+  SensorDataModel, SignalFilters;
 
 type
   { View'a bildirim göndermek için olay tipleri }
@@ -73,6 +75,12 @@ type
     { İstatistik hesapla }
     procedure UpdateStatistics;
 
+    { Gürültü seviyesi otomatik tahmini - MAD (Medyan Mutlak Sapma) tabanlı }
+    function EstimateNoiseSigmaMAD(AAxis: TAxisType): Double;
+
+    { Seçili eksen için önerilen sigma çarpanını hesapla }
+    function GetSuggestedSigmaMultiplier(AAxis: TAxisType): Double;
+
     { Olaylar }
     property OnDataLoaded: TDataLoadedEvent read FOnDataLoaded write FOnDataLoaded;
     property OnFilterApplied: TFilterAppliedEvent read FOnFilterApplied write FOnFilterApplied;
@@ -83,6 +91,18 @@ type
   end;
 
 implementation
+
+const
+  { MAD → sigma dönüşüm katsayısı: normal dağılım için tutarlı tahmin sağlar.
+    İspat: sigma = k * MAD, k = 1 / (sqrt(2) * erfinv(0.5)) ≈ 1.4826 }
+  MAD_TO_SIGMA_SCALE_FACTOR = 1.4826;
+
+  { Önerilen sigma çarpanı sınırları }
+  MIN_SIGMA_MULTIPLIER = 0.5;
+  MAX_SIGMA_MULTIPLIER = 5.0;
+
+  { Normal dağılımın %95 güven aralığı z-değeri }
+  NORMAL_DIST_95_PERCENTILE = 1.96;
 
 { TFilterController }
 
@@ -279,6 +299,75 @@ begin
 
   if Assigned(FOnStatisticsUpdated) then
     FOnStatisticsUpdated(Self, RawStats, FilteredStats, FSelectedAxis);
+end;
+
+function TFilterController.EstimateNoiseSigmaMAD(AAxis: TAxisType): Double;
+{ MAD (Median Absolute Deviation) tabanlı gürültü sigma tahmini.
+  Formül: sigma_hat = 1.4826 * median(|xi - median(x)|)
+  1.4826 katsayısı normal dağılım için tutarlı bir tahmin sağlar. }
+var
+  RawData, SortedData, MADValues: TArray<Double>;
+  I, N: Integer;
+  MedianVal, MAD: Double;
+begin
+  Result := 0;
+  RawData := FModel.GetAxisData(AAxis);
+  N := Length(RawData);
+  if N < 2 then
+    Exit;
+
+  { Adım 1: Medyanı bul }
+  SortedData := Copy(RawData);
+  TArray.Sort<Double>(SortedData, TComparer<Double>.Default);
+  if N mod 2 = 1 then
+    MedianVal := SortedData[N div 2]
+  else
+    MedianVal := (SortedData[(N div 2) - 1] + SortedData[N div 2]) / 2.0;
+
+  { Adım 2: Her nokta için |xi - median| hesapla }
+  SetLength(MADValues, N);
+  for I := 0 to N - 1 do
+    MADValues[I] := Abs(RawData[I] - MedianVal);
+
+  { Adım 3: Mutlak sapmaların medyanını bul (MAD) }
+  TArray.Sort<Double>(MADValues, TComparer<Double>.Default);
+  if N mod 2 = 1 then
+    MAD := MADValues[N div 2]
+  else
+    MAD := (MADValues[(N div 2) - 1] + MADValues[N div 2]) / 2.0;
+
+  { Normal dağılım için tutarlı tahmin: sigma = MAD_TO_SIGMA_SCALE_FACTOR * MAD }
+  Result := MAD_TO_SIGMA_SCALE_FACTOR * MAD;
+end;
+
+function TFilterController.GetSuggestedSigmaMultiplier(AAxis: TAxisType): Double;
+{ Veri karakteristiğine göre önerilen sigma çarpanını hesaplar.
+  MAD tahmini ve örnek standart sapması oranına dayanır:
+  - Veri temizse (az aykırı değer): MAD_sigma ≈ StdDev → multiplier ≈ 1.96
+  - Çok aykırı değer varsa: MAD_sigma << StdDev → multiplier düşer
+  Sonuç [0.5, 5.0] aralığına sınırlandırılır. }
+var
+  RawData: TArray<Double>;
+  MADSigma, SampleStdDev: Double;
+  Stats: TStatistics;
+begin
+  Result := 2.0;
+  RawData := FModel.GetAxisData(AAxis);
+  if Length(RawData) < 2 then
+    Exit;
+
+  MADSigma := EstimateNoiseSigmaMAD(AAxis);
+  Stats := FModel.CalculateStatistics(RawData);
+  SampleStdDev := Stats.StdDev;
+
+  if (SampleStdDev < 1E-10) or (MADSigma < 1E-10) then
+    Exit;
+
+  { 1.96 * (MAD_sigma / sample_stddev) — normal dağılım için %95 eşiği }
+  Result := EnsureRange(
+    NORMAL_DIST_95_PERCENTILE * MADSigma / SampleStdDev,
+    MIN_SIGMA_MULTIPLIER,
+    MAX_SIGMA_MULTIPLIER);
 end;
 
 end.
