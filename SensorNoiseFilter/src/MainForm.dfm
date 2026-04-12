@@ -13,7 +13,6 @@ object FormMain: TFormMain
   Position = poScreenCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  PixelsPerInch = 96
   TextHeight = 13
   object PanelTop: TPanel
     Left = 0
@@ -26,42 +25,42 @@ object FormMain: TFormMain
     object LabelFile: TLabel
       Left = 16
       Top = 14
-      Width = 55
+      Width = 57
       Height = 13
       Caption = 'CSV Dosya:'
     end
     object LabelFilter: TLabel
       Left = 16
       Top = 44
-      Width = 27
+      Width = 29
       Height = 13
       Caption = 'Filtre:'
     end
     object LabelAxis: TLabel
       Left = 16
       Top = 74
-      Width = 29
+      Width = 33
       Height = 13
       Caption = 'Eksen:'
     end
     object LabelParam1: TLabel
       Left = 370
       Top = 44
-      Width = 66
+      Width = 63
       Height = 13
       Caption = 'Parametre 1:'
     end
     object LabelParam2: TLabel
       Left = 560
       Top = 44
-      Width = 66
+      Width = 63
       Height = 13
       Caption = 'Parametre 2:'
     end
     object LabelSigma: TLabel
       Left = 370
       Top = 74
-      Width = 84
+      Width = 91
       Height = 13
       Caption = 'G'#252'r'#252'lt'#252' Sigma (x):'
     end
@@ -216,7 +215,6 @@ object FormMain: TFormMain
     Height = 430
     Align = alClient
     BevelOuter = bvNone
-    Caption = ''
     TabOrder = 1
     object PaintBoxGraph: TSkPaintBox
       Left = 0
@@ -224,10 +222,10 @@ object FormMain: TFormMain
       Width = 1050
       Height = 430
       Align = alClient
-      OnDraw = PaintBoxGraphDraw
       OnMouseDown = PaintBoxGraphMouseDown
       OnMouseMove = PaintBoxGraphMouseMove
       OnMouseUp = PaintBoxGraphMouseUp
+      OnDraw = PaintBoxGraphDraw
     end
   end
   object PanelBottom: TPanel
@@ -249,7 +247,7 @@ object FormMain: TFormMain
       object LabelStatsTitle: TLabel
         Left = 16
         Top = 8
-        Width = 81
+        Width = 82
         Height = 13
         Caption = #304'statistik Bilgiler'
         Font.Charset = DEFAULT_CHARSET
@@ -262,7 +260,7 @@ object FormMain: TFormMain
       object LabelRawStats: TLabel
         Left = 16
         Top = 30
-        Width = 500
+        Width = 55
         Height = 13
         Caption = 'Ham Veri: -'
         Font.Charset = DEFAULT_CHARSET
@@ -275,7 +273,7 @@ object FormMain: TFormMain
       object LabelFilteredStats: TLabel
         Left = 16
         Top = 50
-        Width = 500
+        Width = 64
         Height = 13
         Caption = 'Filtreli Veri: -'
         Font.Charset = DEFAULT_CHARSET
@@ -288,7 +286,7 @@ object FormMain: TFormMain
       object LabelNoiseInfo: TLabel
         Left = 16
         Top = 70
-        Width = 500
+        Width = 83
         Height = 13
         Caption = 'G'#252'r'#252'lt'#252' Bilgisi: -'
         Font.Charset = DEFAULT_CHARSET
@@ -301,9 +299,11 @@ object FormMain: TFormMain
       object LabelLegend: TLabel
         Left = 16
         Top = 95
-        Width = 300
+        Width = 480
         Height = 13
-        Caption = 'Renk: Mavi = Ham Veri | Ye'#351'il = Filtreli | K'#305'rm'#305'z'#305' = G'#252'r'#252'lt'#252' | (T'#252'm Eksen: Mavi=X, Turuncu=Y, Mor=Z)'
+        Caption = 
+          'Renk: Mavi = Ham Veri | Ye'#351'il = Filtreli | K'#305'rm'#305'z'#305' = G'#252'r'#252'lt'#252' | (' +
+          'T'#252'm Eksen: Mavi=X, Turuncu=Y, Mor=Z)'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -11

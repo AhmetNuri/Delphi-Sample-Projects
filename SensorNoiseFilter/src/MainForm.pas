@@ -1,4 +1,4 @@
-{ ============================================================================
+﻿{ ============================================================================
   MainForm.pas - View Katmanı
   
   Kullanıcı arayüzü: CSV yükleme, filtre seçimi, parametre ayarları,
@@ -17,8 +17,8 @@ uses
   System.Types, System.UITypes, System.Threading,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
   Vcl.ExtCtrls, Vcl.ComCtrls,
-  Skia, Skia.Vcl,
-  SensorDataModel, SignalFilters, FilterController;
+      vcl.Skia,
+  SensorDataModel, SignalFilters, FilterController, System.Skia;
 
 type
   TFormMain = class(TForm)
@@ -866,7 +866,7 @@ begin
   AFont.GetMetrics(Metrics);
   { Skia'da fAscent, taban çizgisinin ÜSTÜNDEKI mesafeyi negatif sayı olarak verir
     (örn. -7.5). Üst-sol Y'den taban Y'ye dönüşüm: taban = üst + (-fAscent) = üst - fAscent }
-  Result := ATopY - Metrics.fAscent;
+  Result := ATopY - Metrics.Ascent;
 end;
 
 procedure TFormMain.DrawGraph(ACanvas: ISkCanvas; AWidth, AHeight: Integer);
